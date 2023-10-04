@@ -51,8 +51,17 @@ slot_t _3D::advance(slot_t slot, const float3& t_back, bool& should_pop)
 		should_pop |= slot == 8;
 	}
 	if (t_back.y == t_b_min) {
-		slot += 2;
-		should_pop |= slot > 3;
+		switch (slot) {
+		case 2:
+		case 3:
+		case 6:
+		case 7:
+			should_pop = true;
+			break;
+		default:
+			slot += 2;
+			break;
+		}
 	}
 	if (t_back.z == t_b_min) {
 		slot += 4;
@@ -162,17 +171,31 @@ Ray3D _3D::correctRay(const Ray3D& ray, const float3& mirror_line, const mirror_
 	return Ray3D(p, d);
 }
 
-bool _3D::hits_at_all(const Ray3D& ray, const glm::vec3 front, const glm::vec3 back) {
+bool _3D::hits_at_all(const Ray3D& ray, const float3 front, const float3 back) {
 	float tmin = 0.0, tmax = FLT_MAX;
-	const glm::vec3 p = make_vec3(ray.getPos());
-	const glm::vec3 d = make_vec3(ray.getDirection());
-	for (int i = 0; i < 3; ++i) {
-		float t1 = (front[i] - p[i]) / d[i];
-		float t2 = (back[i] - p[i]) / d[i];
+	const float3 p = ray.getPos();
+	const float3 d = ray.getDirection();
 
-		tmin = fminf(fmaxf(t1, tmin), fmaxf(t2, tmin));
-		tmax = fmaxf(fminf(t1, tmax), fminf(t2, tmax));
-	}
+
+	float t1 = (front.x - p.x) / d.x;
+	float t2 = (back.x - p.x) / d.x;
+
+	tmin = fminf(fmaxf(t1, tmin), fmaxf(t2, tmin));
+	tmax = fmaxf(fminf(t1, tmax), fminf(t2, tmax));
+
+
+	t1 = (front.y - p.y) / d.y;
+	t2 = (back.y - p.y) / d.y;
+
+	tmin = fminf(fmaxf(t1, tmin), fmaxf(t2, tmin));
+	tmax = fmaxf(fminf(t1, tmax), fminf(t2, tmax));
+
+
+	t1 = (front.z - p.z) / d.z;
+	t2 = (back.z - p.z) / d.z;
+
+	tmin = fminf(fmaxf(t1, tmin), fmaxf(t2, tmin));
+	tmax = fmaxf(fminf(t1, tmax), fminf(t2, tmax));
 
 	return tmin <= tmax;
 }
@@ -183,7 +206,7 @@ RayCastResult3D _3D::castRay(const Ray3D& ray, node_t* tree)
 	result.ray = ray;
 	result.hit = false;
 
-	node_t parent = tree[0];
+	uint32_t parent = tree[0];
 	float parentScale = MAX_SCALE;
 	float childScale = parentScale * .5f;
 
@@ -199,13 +222,14 @@ RayCastResult3D _3D::castRay(const Ray3D& ray, node_t* tree)
 	const float3 mirrorLine = parentFront;
 	const Ray3D ray_ = correctRay(ray, mirrorLine, mirror);
 
-	if (!hits_at_all(ray_, make_vec3(parentFront), make_vec3(parentBack))) {
+	if (!hits_at_all(ray_, parentFront, parentBack)) {
 		return result;
 	}
 
+
 	auto tFunc =
 		[&](const float3& a) {
-		return ray_.t(a);
+			return ray_.t(a);
 		};
 
 	float3 t_pf = tFunc(parentFront);
@@ -221,6 +245,7 @@ RayCastResult3D _3D::castRay(const Ray3D& ray, node_t* tree)
 	if (t_pf.z < 0 && t_pb.z < 0) {
 		return result;
 	}
+
 
 	slot_t childSlot = push(t_pf, t_pc);
 	slot_t parentSlot = -1;
@@ -346,4 +371,5 @@ RayCastResult3D _3D::castRay(const Ray3D& ray, node_t* tree)
 	}
 
 	return result;
+
 }

@@ -30,9 +30,9 @@ int main()
     auto tree = Octree3D::getDefault();
     auto compiled = Octree3D::compile(&tree.front());
 
-    mainCamera = Camera({ 0, 0, -10 });
+    mainCamera = Camera({ 0, 0, -1 });
 
-    dim3 threadsPerBlock(8, 8);
+    dim3 threadsPerBlock(16, 16);
     dim3 numBlocks(X_RESOLUTION / threadsPerBlock.x, Y_RESOLUTION / threadsPerBlock.y);
 
     node_t* gpu_tree;
@@ -73,7 +73,7 @@ int main()
         status = cudaMemcpy(gpu_camera, &mainCamera, sizeof(Camera), cudaMemcpyHostToDevice);
         assert(!status);
 
-        render_headon<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_tree, gpu_result, gpu_pitch);
+        render<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_tree, gpu_result, gpu_pitch);
         cudaArray_t arr = window.map(tex_GPU);
         // copy        
         status = cudaMemcpy2DToArray(arr, 0, 0, gpu_result, cpu_pitch, X_RESOLUTION * sizeof(uchar4), Y_RESOLUTION, cudaMemcpyDefault);
@@ -98,6 +98,9 @@ int main()
         int fps = 1. / delta;
         lastTime = currentTime;
         std::cout << "FPS: " << fps << '\n';
+        auto& p = mainCamera.Position;
+
+        std::cout << p.x << ", " << p.y << ", " << p.z << "\n";
 
         processInput(win, delta);
     }
@@ -115,8 +118,8 @@ int main()
 
 __global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch) {
     const uchar4 CLEAR_COLOUR = make_uchar4(127, 127, 127, 127);
-    const float3 lower_left = make_float3(0, 0, 1);
-    const float3 span = make_float3(1, 1, 0);
+    const float3 lower_left = make_float3(-1, -1, 1);
+    const float3 span = make_float3(2, 2, 0);
     const float3 camPos = make_float3(camera->Position);
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -134,6 +137,10 @@ __global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t*
 
     auto res = castRay(ray, tree);
 
+    if (y > 550) {
+        res = castRay(ray, tree);
+    }
+
     uchar4* d = element(data, *pitch, x, y);
     unsigned char& r = d->x;
     unsigned char& g = d->y;
@@ -147,6 +154,16 @@ __global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t*
     }
     else {
         *d = CLEAR_COLOUR;
+    }
+    if (x == X_RESOLUTION / 2) {
+        r = 0;
+        g = 255;
+        b = 0;
+    }
+    if (y == Y_RESOLUTION / 2) {
+        r = 0;
+        g = 255;
+        b = 0;
     }
 }
 
@@ -165,6 +182,10 @@ __global__ void render_headon(const Camera* camera, node_t* tree, uchar4* data, 
     rayPos.y += camera->Position.y;
     rayPos.z += camera->Position.z;
 
+    if (x > 80) {
+        int i = 0;
+        auto d = element(data, *pitch, x, y);
+    }
 
     _3D::Ray3D ray(rayPos, rayDir);
 

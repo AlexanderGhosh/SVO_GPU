@@ -22,7 +22,7 @@ namespace _3D {
 	public:
 		__device__ Stack() : data(), size(0) { } 
 		__device__ void push(node_t parent, slot_t slot) { data[size++] = { parent, slot }; }
-		__device__ StackItem& pop() { return data[size--]; }
+		__device__ StackItem& pop() { return data[--size]; }
 	private:
 		StackItem data[PARENT_STACK_DEPTH + 1];
 		int size;
@@ -101,7 +101,7 @@ namespace _3D {
 	/// <returns>the ray subtible for a mirrord octree</returns>
 	__device__ __inline__ Ray3D correctRay(const Ray3D& ray, const float3& mirror_line, const mirror_t& mirror);
 
-	__device__ bool hits_at_all(const Ray3D& ray, const glm::vec3 front, const glm::vec3 back);
+	__device__ bool hits_at_all(const Ray3D& ray, const float3 front, const float3 back);
 
 	__device__ RayCastResult3D castRay(const Ray3D& ray, node_t* tree);
 }

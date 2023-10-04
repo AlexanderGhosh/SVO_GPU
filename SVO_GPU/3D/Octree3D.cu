@@ -155,6 +155,7 @@ std::vector<Octree3D> Octree3D::getDefault()
 	Octree3D& c1_1_1 = result[10];
 	Octree3D& c2_2_2 = result[11];
 	Octree3D& c3_3_3 = result[12];
+
 	Octree3D& c4 = result[13];
 	Octree3D& c5 = result[14];
 	Octree3D& c6 = result[15];
@@ -193,10 +194,10 @@ std::vector<Octree3D> Octree3D::getDefault()
 	c7.setChild(&c7_7, 7);
 	c7_7.setChild(&c7_7_7, 7);
 
-	// root.setChild(&c0, 0);
-	// root.setChild(&c1, 1);
-	// root.setChild(&c2, 2);
-	// root.setChild(&c3, 3);
+	root.setChild(&c0, 0);
+	root.setChild(&c1, 1);
+	root.setChild(&c2, 2);
+	root.setChild(&c3, 3);
 	root.setChild(&c4, 4);
 	root.setChild(&c5, 5);
 	root.setChild(&c6, 6);
