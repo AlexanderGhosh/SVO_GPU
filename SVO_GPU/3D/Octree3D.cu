@@ -3,7 +3,7 @@
 #include <list>
 
 using namespace _3D;
-Octree3D::Octree3D() : parent(nullptr), children()
+Octree3D::Octree3D() : parent(nullptr), children(), shader_index(1)
 {
 }
 
@@ -23,6 +23,14 @@ const bool Octree3D::isLeaf() const
 	return size() == 0;
 }
 
+void _3D::Octree3D::setShader(uint8_t shader)
+{
+	if (shader > 15) {
+		throw std::exception("Shader index cannot exceed 15");
+	}
+	shader_index = shader;
+}
+
 const size_t Octree3D::size() const
 {
 	uint32_t counter = 0;
@@ -34,7 +42,7 @@ const size_t Octree3D::size() const
 	return counter;
 }
 
-const node_t Octree3D::toInt32() const
+const uint32_t Octree3D::toInt32() const
 {
 	uint32_t valid = 0;
 	uint32_t leaf = 0;
@@ -54,9 +62,25 @@ const node_t Octree3D::toInt32() const
 	return valid | leaf;
 }
 
+const uint32_t _3D::Octree3D::getShaderIndices() const
+{
+	uint32_t indices = 0;
+	int count = 0;
+	for (auto itt = children.rbegin(); itt != children.rend(); itt++) {
+		const Octree3D* child = *itt;
+		if (child) {
+			indices |= child->shader_index & 0b1111;
+		}
+		if (count++ < 7) {
+			indices <<= 4;
+		}
+	}
+	return indices;
+}
+
 std::vector<node_t> Octree3D::compile(Octree3D* root)
 {
-	std::vector<uint32_t> result = {};
+	std::vector<node_t> result = {};
 
 
 	// Mark all the vertices as not visited
@@ -97,7 +121,7 @@ std::vector<node_t> Octree3D::compile(Octree3D* root)
 			auto itter = std::find(visited.begin(), visited.end(), svo->parent);
 			if (itter != visited.end()) {
 				int parent_index = itter - visited.begin();
-				uint32_t& parent = result[parent_index];
+				uint32_t& parent = result[parent_index].child_data;
 				if (!(parent & 0xffff0000)) {
 					uint32_t idx = i << 16;
 					parent |= idx;
@@ -105,7 +129,8 @@ std::vector<node_t> Octree3D::compile(Octree3D* root)
 			}
 		}
 		const uint32_t compiled = svo->toInt32();
-		result.push_back(compiled);
+		const uint32_t shader = svo->getShaderIndices();
+		result.push_back({ compiled, shader });
 	}
 
 	return result;

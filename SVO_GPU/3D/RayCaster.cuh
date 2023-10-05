@@ -10,6 +10,7 @@ namespace _3D {
 		bool hit;
 		float3 pos;
 		float scale;
+		uint8_t shader_index;
 
 		__device__ RayCastResult3D();
 	};
@@ -82,7 +83,7 @@ namespace _3D {
 	/// <param name="child_slot">the desired slot for the index</param>
 	/// <param name="is_leaf">true if the slot is also a child | othewise false</param>
 	/// <returns>the index of the child</returns>
-	__device__ __inline__ int getChildIndex(const node_t parent, const slot_t child_slot, bool& is_leaf);
+	__device__ __inline__ int getChildIndex(const uint32_t parent, const slot_t child_slot, bool& is_leaf);
 	/// <summary>
 	/// Returns the index of the child -1 if it isnt a valid is_leaf is true if it is valid and a leaf
 	/// </summary>
@@ -91,7 +92,7 @@ namespace _3D {
 	/// <param name="mirror">the mirror</param>
 	/// <param name="is_leaf">true if the slot is also a child | othewise false</param>
 	/// <returns>the index of the child</returns>
-	__device__ __inline__ int getChildIndex(const node_t parent, slot_t child_slot, const mirror_t& mirror, bool& is_leaf);
+	__device__ __inline__ int getChildIndex(const uint32_t parent, slot_t child_slot, const mirror_t& mirror, bool& is_leaf);
 	/// <summary>
 	/// Assures the ray's direction is strictly positive | and changes the position appropriatly
 	/// </summary>
@@ -102,6 +103,8 @@ namespace _3D {
 	__device__ __inline__ Ray3D correctRay(const Ray3D& ray, const float3& mirror_line, const mirror_t& mirror);
 
 	__device__ bool hits_at_all(const Ray3D& ray, const float3 front, const float3 back);
+
+	__device__ uint8_t getShaderIndex(const node_t& parent, const slot_t child_slot, const mirror_t& mirror);
 
 	__device__ RayCastResult3D castRay(const Ray3D& ray, node_t* tree);
 }

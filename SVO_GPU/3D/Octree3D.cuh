@@ -8,6 +8,7 @@ namespace _3D {
 	private:
 		std::array<Octree3D*, 8> children;
 		Octree3D* parent;
+		uint8_t shader_index;
 	public:
 		Octree3D();
 
@@ -17,9 +18,13 @@ namespace _3D {
 
 		const bool isLeaf() const;
 
+		void setShader(uint8_t shader);
+
 		const size_t size() const;
 
-		const node_t toInt32() const;
+		const uint32_t toInt32() const;
+
+		const uint32_t getShaderIndices() const;
 
 		static std::vector<node_t> compile(Octree3D* root);
 

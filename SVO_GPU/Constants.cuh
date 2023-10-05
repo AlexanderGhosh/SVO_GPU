@@ -15,10 +15,15 @@ constexpr int PIXEL_COUNT = X_RESOLUTION * Y_RESOLUTION;
 constexpr auto NUM_CHANNELS = 3;
 constexpr int  IMAGE_DATA_SIZE = PIXEL_COUNT * NUM_CHANNELS;
 
+struct node_t {
+	unsigned int child_data;
+	unsigned int shader_data;
+};
 
+using shader_t = uchar4;
 using slot_t = int; // at the moment it CAN'T be unsigned
 using mirror_t = float3; // glm::bvec2 shold migrate to this
-using node_t = unsigned int;
+// using node_t = unsigned int;
 
 __device__ __host__ static uchar4* element(uchar4* arr, size_t pitch, int x, int y) {
 	return (uchar4*)((char*)arr + y * pitch) + x;

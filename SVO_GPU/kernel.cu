@@ -13,7 +13,7 @@
 #include <cassert>
 using namespace _3D;
 
-__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch);
+__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, shader_t* shaders);
 
 __global__ void render_headon(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch);
 
@@ -26,6 +26,15 @@ int main()
     Window window(X_RESOLUTION, Y_RESOLUTION);
     Texture texture(X_RESOLUTION, Y_RESOLUTION);
     cudaGraphicsResource_t tex_GPU = window.linkCUDA(texture);
+
+    const uint8_t num_shaders = 5;
+    shader_t shaders[num_shaders] = {
+        { 0, 0, 0, 255 },
+        { 255, 255, 255, 255 },
+        { 255, 0, 0, 255 },
+        { 0, 255, 0, 255 },
+        { 0, 0, 255, 255 },
+    };
 
     auto tree = Octree3D::getDefault();
     auto compiled = Octree3D::compile(&tree.front());
@@ -40,6 +49,7 @@ int main()
     uchar4* gpu_result;
     size_t* gpu_pitch;
     size_t cpu_pitch;
+    shader_t* gpu_shaders;
 
     cudaError_t status;
     // tree
@@ -62,6 +72,12 @@ int main()
     status = cudaMemcpy(gpu_pitch, &cpu_pitch, sizeof(size_t), cudaMemcpyHostToDevice);
     assert(!status);
 
+    // shaders
+    status = cudaMalloc(&gpu_shaders, sizeof(shader_t) * num_shaders);
+    assert(!status);
+    status = cudaMemcpy(gpu_shaders, &shaders, sizeof(shader_t) * num_shaders, cudaMemcpyHostToDevice);
+    assert(!status);
+
     GLuint fbo = 0;
     glGenFramebuffers(1, &fbo);
 
@@ -73,9 +89,7 @@ int main()
         status = cudaMemcpy(gpu_camera, &mainCamera, sizeof(Camera), cudaMemcpyHostToDevice);
         assert(!status);
 
-        std::cout << mainCamera.Front.x << ", " << mainCamera.Front.y << ", " << mainCamera.Front.z << "\n";
-
-        render<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_tree, gpu_result, gpu_pitch);
+        render<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_tree, gpu_result, gpu_pitch, gpu_shaders);
         cudaArray_t arr = window.map(tex_GPU);
         // copy        
         status = cudaMemcpy2DToArray(arr, 0, 0, gpu_result, cpu_pitch, X_RESOLUTION * sizeof(uchar4), Y_RESOLUTION, cudaMemcpyDefault);
@@ -115,7 +129,7 @@ int main()
     return 0;
 }
 
-__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch) {
+__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, shader_t* shaders) {
     const uchar4 CLEAR_COLOUR = make_uchar4(127, 127, 127, 127);
     const float focal_length = 1;
     const float3 lower_left = make_float3(-1, -1, 0);
@@ -152,10 +166,7 @@ __global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t*
     unsigned char& b = d->z;
     unsigned char& a = d->w;
     if (res.hit) {
-        r = 255;
-        g = 0;
-        b = 0;
-        a = 255;
+        *d = shaders[res.shader_index];
     }
     else {
         *d = CLEAR_COLOUR;
