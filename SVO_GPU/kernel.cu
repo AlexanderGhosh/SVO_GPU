@@ -73,6 +73,8 @@ int main()
         status = cudaMemcpy(gpu_camera, &mainCamera, sizeof(Camera), cudaMemcpyHostToDevice);
         assert(!status);
 
+        std::cout << mainCamera.Front.x << ", " << mainCamera.Front.y << ", " << mainCamera.Front.z << "\n";
+
         render<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_tree, gpu_result, gpu_pitch);
         cudaArray_t arr = window.map(tex_GPU);
         // copy        
@@ -97,10 +99,7 @@ int main()
         double delta = currentTime - lastTime;
         int fps = 1. / delta;
         lastTime = currentTime;
-        std::cout << "FPS: " << fps << '\n';
-        auto& p = mainCamera.Position;
-
-        std::cout << p.x << ", " << p.y << ", " << p.z << "\n";
+        // std::cout << "FPS: " << fps << '\n';
 
         processInput(win, delta);
     }
@@ -118,28 +117,34 @@ int main()
 
 __global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch) {
     const uchar4 CLEAR_COLOUR = make_uchar4(127, 127, 127, 127);
-    const float3 lower_left = make_float3(-1, -1, 1);
+    const float focal_length = 1;
+    const float3 lower_left = make_float3(-1, -1, 0);
     const float3 span = make_float3(2, 2, 0);
     const float3 camPos = make_float3(camera->Position);
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    float u = float(x) / float(X_RESOLUTION);
-    float v = float(y) / float(Y_RESOLUTION);
-    float3 rayDir = make_float3(u, v, 0) * span + lower_left;
+    const float width = X_RESOLUTION;  // pixels across
+    const float height = Y_RESOLUTION;  // pixels high
+    float normalized_i = (x / width) - 0.5;
+    float normalized_j = (y / height) - 0.5;
+    float3 ri = make_float3(camera->Right);
+    ri.x *= -normalized_i;
+    ri.y *= -normalized_i;
+    ri.z *= -normalized_i;
+    float3 u = make_float3(camera->Up);
+    u.x *= normalized_j;
+    u.y *= normalized_j;
+    u.z *= normalized_j;
+    float3 image_point = ri + u + camPos + make_float3(camera->Front) * focal_length;
 
-    glm::vec3 d_ = glm::normalize(make_vec3(rayDir));
-    d_ = camera->getRotation() * d_;
-    // rayDir = make_float3(d_);
+    float3 ray_direction = image_point - camPos;
 
-    _3D::Ray3D ray(camPos, rayDir);
+
+    _3D::Ray3D ray(camPos, ray_direction);
 
     auto res = castRay(ray, tree);
-
-    if (y > 550) {
-        res = castRay(ray, tree);
-    }
 
     uchar4* d = element(data, *pitch, x, y);
     unsigned char& r = d->x;
@@ -181,11 +186,6 @@ __global__ void render_headon(const Camera* camera, node_t* tree, uchar4* data, 
     rayPos.x += camera->Position.x;
     rayPos.y += camera->Position.y;
     rayPos.z += camera->Position.z;
-
-    if (x > 80) {
-        int i = 0;
-        auto d = element(data, *pitch, x, y);
-    }
 
     _3D::Ray3D ray(rayPos, rayDir);
 
@@ -238,7 +238,6 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     {
         lastX = xpos;
         lastY = ypos;
-        firstMouse = false;
     }
 
     float xoffset = xpos - lastX;
@@ -248,4 +247,5 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     lastY = ypos;
 
     mainCamera.ProcessMouseMovement(xoffset, yoffset);
+    firstMouse = false;
 }

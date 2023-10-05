@@ -52,9 +52,9 @@ __device__ __host__ static glm::mat3 get_rotation(const glm::vec3& a, const glm:
 		{ -v.y, v.x, 0 }
 	};
 
-	auto t = (1 - c) / (1 - (c * c));
+	auto t = 1.f / (1 + c);
 
-	auto res = glm::mat3(1) + sk + sk * t;
+	auto res = glm::mat3(1) + sk + (sk * sk) * t;
 	return res;
 }
 

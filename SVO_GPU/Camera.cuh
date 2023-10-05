@@ -39,7 +39,7 @@ public:
     float Zoom;
 
     // constructor with vectors
-    Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
+    Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : Front(glm::vec3(0.0f, 0.0f, 1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
     {
         Position = position;
         WorldUp = up;
@@ -58,20 +58,20 @@ public:
     void ProcessKeyboard(Camera_Movement direction, float deltaTime)
     {
         float velocity = MovementSpeed * deltaTime;
+        glm::vec3 vel = glm::vec3(1, 0, 1) * velocity;
         if (direction == FORWARD)
-            Position.z += velocity;
+            Position += Front * vel;
         if (direction == BACKWARD)
-            Position.z -= velocity;
+            Position -= Front * vel;
         if (direction == LEFT)
-            Position.x -= velocity;
+            Position += Right * vel;
         if (direction == RIGHT)
-            Position.x += velocity;
+            Position -= Right * vel;
         if (direction == UP)
             Position.y += velocity;
         if (direction == DOWN)
             Position.y -= velocity;
     }
-
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
     void ProcessMouseMovement(float xoffset, float yoffset, bool constrainPitch = true)
     {
@@ -79,7 +79,7 @@ public:
         yoffset *= MouseSensitivity;
 
         Yaw -= xoffset;
-        Pitch -= yoffset;
+        Pitch += yoffset;
 
         // make sure that when pitch is out of bounds, screen doesn't get flipped
         if (constrainPitch)

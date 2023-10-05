@@ -81,25 +81,27 @@ float3 _3D::getChildPosition(float3 parent_front, const slot_t next_slot, const 
 slot_t _3D::mirrorSlot(slot_t slot, const mirror_t& mirror)
 {
 	if (mirror.x == -1) {
-		if (slot < 2) {
-			slot = abs(slot - 1);
+		if (slot % 2 == 0) {
+			slot++;
 		}
 		else {
-			slot++;
-			if (slot == 4) {
-				slot = 2;
-			}
+			slot--;
 		}
 	}
 	if (mirror.y == -1) {
-		slot -= 2;
-		if (slot < 2) {
-			if (slot == -1) {
-				slot = 3;
-			}
-			else if (slot == -2) {
-				slot = 2;
-			}
+		switch (slot) {
+		case 0:
+		case 1:
+		case 4:
+		case 5:
+			slot += 2;
+			break;
+		case 2:
+		case 3:
+		case 6:
+		case 7:
+			slot -= 2;
+			break;
 		}
 	}
 	if (mirror.z == -1) {
