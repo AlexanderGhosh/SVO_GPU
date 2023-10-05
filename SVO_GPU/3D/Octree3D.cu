@@ -140,7 +140,7 @@ std::vector<Octree3D> Octree3D::getDefault()
 	//root.setChild(&c2, 2);
 	//root.setChild(&c3, 3);
 
-	std::vector<Octree3D> result(25);
+	std::vector<Octree3D> result(33);
 
 	Octree3D& root = result[0];
 	Octree3D& c0 = result[1];
@@ -169,30 +169,47 @@ std::vector<Octree3D> Octree3D::getDefault()
 	Octree3D& c6_6_6 = result[23];
 	Octree3D& c7_7_7 = result[24];
 
+	Octree3D& c0_7 = result[25];
+	Octree3D& c1_6 = result[26];
+	Octree3D& c2_5 = result[27];
+	Octree3D& c3_4 = result[28];
+	Octree3D& c4_3 = result[29];
+	Octree3D& c5_2 = result[30];
+	Octree3D& c6_1 = result[31];
+	Octree3D& c7_0 = result[32];
+
 
 	c0.setChild(&c0_0, 0);
 	c0_0.setChild(&c0_0_0, 0);
+	c0.setChild(&c0_7, 7);
 
 	c1.setChild(&c1_1, 1);
 	c1_1.setChild(&c1_1_1, 1);
+	c1.setChild(&c1_6, 6);
 
 	c2.setChild(&c2_2, 2);
 	c2_2.setChild(&c2_2_2, 2);
+	c2.setChild(&c2_5, 5);
 
 	c3.setChild(&c3_3, 3);
 	c3_3.setChild(&c3_3_3, 3);
+	c3.setChild(&c3_4, 4);
 
 	c4.setChild(&c4_4, 4);
 	c4_4.setChild(&c4_4_4, 4);
+	c4.setChild(&c4_3, 3);
 
 	c5.setChild(&c5_5, 5);
 	c5_5.setChild(&c5_5_5, 5);
+	c5.setChild(&c5_2, 2);
 
 	c6.setChild(&c6_6, 6);
 	c6_6.setChild(&c6_6_6, 6);
+	c6.setChild(&c6_1, 1);
 
 	c7.setChild(&c7_7, 7);
 	c7_7.setChild(&c7_7_7, 7);
+	c7.setChild(&c7_0, 0);
 
 	root.setChild(&c0, 0);
 	root.setChild(&c1, 1);
