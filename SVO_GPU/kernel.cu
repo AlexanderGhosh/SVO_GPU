@@ -103,8 +103,8 @@ int main()
         status = cudaMemcpy(gpu_camera, &mainCamera, sizeof(Camera), cudaMemcpyHostToDevice);
         assert(!status);
 
-        // renderModel<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_result, gpu_pitch, gpu_model);
         render<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_tree, gpu_result, gpu_pitch, gpu_shaders);
+
         cudaArray_t arr = window.map(tex_GPU);
         // copy        
         status = cudaMemcpy2DToArray(arr, 0, 0, gpu_result, cpu_pitch, X_RESOLUTION * sizeof(uchar4), Y_RESOLUTION, cudaMemcpyDefault);

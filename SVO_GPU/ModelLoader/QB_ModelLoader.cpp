@@ -151,6 +151,7 @@ void QB_Loader::recursivlyMakeTree(QB_Loader::inplace_vector& data, _3D::Octree3
 		auto& child = addNode();
 		recursivlyMakeTree(d, child, span / 2, out);
 		if (child.size() == 0) {
+			out.pop_back();
 			continue;
 		}
 		parent.setChild(&child, i);
