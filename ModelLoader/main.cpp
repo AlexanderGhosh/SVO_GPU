@@ -4,7 +4,9 @@
 #include <iterator>
 
 #include <glm.hpp>
+#include <3D/Octree3D.cuh>
 
+using uchar4 = glm::vec<4, uint8_t>;
 union char4_uint32
 {
 	char c[4];
@@ -68,13 +70,17 @@ int main() {
 
 		if (!compressed) // if uncompressd
 		{
-			for (uint32_t z = 0; z < sizeZ; z++)
-				for (uint32_t y = 0; y < sizeY; y++)
-					for (uint32_t x = 0; x < sizeX; x++)
-					{
-
+			for (uint32_t y = 0; y < sizeY; y += 2) {
+				for (uint32_t z = 0; z < sizeZ; z += 2) {
+					for (uint32_t x = 0; x < sizeX; x += 2) {
+						uint8_t idx = x + y * sizeX + z * sizeX * sizeY;
+						_3D::Octree3D parent;
 					}
+				}
+			}
 		}
+
+		int j = 0;
 	}
 	
 	return 0;

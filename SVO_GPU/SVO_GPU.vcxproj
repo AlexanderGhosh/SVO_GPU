@@ -102,6 +102,9 @@
     <ClInclude Include="3D\Octree3D.cuh" />
     <ClInclude Include="3D\Ray3D.cuh" />
     <ClInclude Include="3D\RayCaster.cuh" />
+    <ClInclude Include="ModelLoader\Model.h" />
+    <ClInclude Include="ModelLoader\ModelLoader.h" />
+    <ClInclude Include="ModelLoader\QB_ModelLoader.h" />
     <ClInclude Include="OpenGL\Buffer.h" />
     <ClInclude Include="OpenGL\PixelBuffer.h" />
     <ClInclude Include="OpenGL\Texture.h" />
@@ -115,6 +118,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="OpenGL\Window.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="ModelLoader\Model.cpp" />
+    <ClCompile Include="ModelLoader\ModelLoader.cpp" />
+    <ClCompile Include="ModelLoader\QB_ModelLoader.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

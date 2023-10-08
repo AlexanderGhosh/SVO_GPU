@@ -3,7 +3,7 @@
 #include <list>
 
 using namespace _3D;
-Octree3D::Octree3D() : parent(nullptr), children(), shader_index(1)
+Octree3D::Octree3D() : parent(nullptr), children(), shader_index(0)
 {
 }
 
@@ -78,7 +78,7 @@ const uint32_t _3D::Octree3D::getShaderIndices() const
 	return indices;
 }
 
-std::vector<node_t> Octree3D::compile(Octree3D* root)
+tree_t Octree3D::compile(Octree3D* root)
 {
 	std::vector<node_t> result = {};
 
@@ -206,6 +206,7 @@ std::vector<Octree3D> Octree3D::getDefault()
 
 	c0.setChild(&c0_0, 0);
 	c0_0.setChild(&c0_0_0, 0);
+	c0_0_0.setShader(3);
 	c0.setChild(&c0_7, 7);
 
 	c1.setChild(&c1_1, 1);
@@ -234,6 +235,7 @@ std::vector<Octree3D> Octree3D::getDefault()
 
 	c7.setChild(&c7_7, 7);
 	c7_7.setChild(&c7_7_7, 7);
+	c7_7_7.setShader(4);
 	c7.setChild(&c7_0, 0);
 
 	root.setChild(&c0, 0);

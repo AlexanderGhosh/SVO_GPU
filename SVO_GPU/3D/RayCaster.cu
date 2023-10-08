@@ -207,7 +207,7 @@ uint8_t _3D::getShaderIndex(const node_t& parent, const slot_t child_slot, const
 	return (parent.shader_data >> shift) & 0b1111;
 }
 
-RayCastResult3D _3D::castRay(const Ray3D& ray, node_t* tree)
+RayCastResult3D _3D::castRay(const Ray3D& ray, const node_t* tree)
 {
 	RayCastResult3D result;
 	result.ray = ray;
@@ -352,7 +352,7 @@ RayCastResult3D _3D::castRay(const Ray3D& ray, node_t* tree)
 				result.hit = true;
 				result.pos = childFront;
 				result.scale = MIN_SCALE;
-				result.shader_index = getShaderIndex(parent, nextChildSlot, mirror);
+				result.shader_index = getShaderIndex(child, nextChildSlot, mirror);
 				result.pos = mirrorAround(result.pos, mirrorLine, mirror);
 				return result;
 			}
@@ -362,7 +362,7 @@ RayCastResult3D _3D::castRay(const Ray3D& ray, node_t* tree)
 				result.hit = true;
 				result.pos = getChildPosition(parentFront, nextChildSlot, nextChildScale);
 				result.scale = nextChildScale;
-				result.shader_index = getShaderIndex(parent, nextChildSlot, mirror);
+				result.shader_index = getShaderIndex(child, nextChildSlot, mirror);
 				result.pos = mirrorAround(result.pos, mirrorLine, mirror);
 				return result;
 			}

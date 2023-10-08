@@ -1,12 +1,13 @@
 #pragma once
 #include "cuda_runtime.h"
+#include <vector>
 #include <glm.hpp>
 
 constexpr float EPSILON = 0.001f;
-constexpr int MAX_SCALE = 8;
-constexpr int MIN_SCALE = 1;
+constexpr float MAX_SCALE = 8;
+constexpr float MIN_SCALE = 1;
 constexpr int MAX_ITTERATIONS = 1000;
-constexpr int OCTREE_SIZE = 8;
+// constexpr int OCTREE_SIZE = 8;
 constexpr int PARENT_STACK_DEPTH = 3;
 
 constexpr int X_RESOLUTION = 640;
@@ -15,14 +16,17 @@ constexpr int PIXEL_COUNT = X_RESOLUTION * Y_RESOLUTION;
 constexpr auto NUM_CHANNELS = 3;
 constexpr int  IMAGE_DATA_SIZE = PIXEL_COUNT * NUM_CHANNELS;
 
+constexpr uint32_t MATERIAL_COUNT = 15;
+
 struct node_t {
 	unsigned int child_data;
 	unsigned int shader_data;
 };
 
-using shader_t = uchar4;
+using material_t = uchar4;
 using slot_t = int; // at the moment it CAN'T be unsigned
 using mirror_t = float3; // glm::bvec2 shold migrate to this
+using tree_t = std::vector<node_t>;
 // using node_t = unsigned int;
 
 __device__ __host__ static uchar4* element(uchar4* arr, size_t pitch, int x, int y) {

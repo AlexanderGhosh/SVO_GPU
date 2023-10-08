@@ -106,5 +106,5 @@ namespace _3D {
 
 	__device__ uint8_t getShaderIndex(const node_t& parent, const slot_t child_slot, const mirror_t& mirror);
 
-	__device__ RayCastResult3D castRay(const Ray3D& ray, node_t* tree);
+	__device__ RayCastResult3D castRay(const Ray3D& ray, const node_t* tree);
 }

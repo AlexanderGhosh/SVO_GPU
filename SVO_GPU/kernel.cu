@@ -9,12 +9,14 @@
 #include "OpenGL/Texture.h"
 #include "Constants.cuh"
 
+#include "ModelLoader/QB_ModelLoader.h"
+#include "ModelLoader/Model.h"
+
 #include <stdio.h>
 #include <cassert>
 using namespace _3D;
 
-__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, shader_t* shaders);
-
+__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, material_t* shaders);
 __global__ void render_headon(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch);
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -23,12 +25,15 @@ void processInput(GLFWwindow* window, double dt);
 Camera mainCamera;
 int main()
 {
+    QB_Loader modelLoader;
+    Model model = modelLoader.load("C:\\Users\\AGWDW\\Desktop\\untitled.qb");
+
     Window window(X_RESOLUTION, Y_RESOLUTION);
     Texture texture(X_RESOLUTION, Y_RESOLUTION);
     cudaGraphicsResource_t tex_GPU = window.linkCUDA(texture);
 
     const uint8_t num_shaders = 5;
-    shader_t shaders[num_shaders] = {
+    material_t shaders[num_shaders] = {
         { 0, 0, 0, 255 },
         { 255, 255, 255, 255 },
         { 255, 0, 0, 255 },
@@ -36,8 +41,10 @@ int main()
         { 0, 0, 255, 255 },
     };
 
-    auto tree = Octree3D::getDefault();
-    auto compiled = Octree3D::compile(&tree.front());
+    // auto tree = Octree3D::getDefault();
+    // auto compiled = Octree3D::compile(&tree.front());
+
+    // auto compiled = model.getData();
 
     mainCamera = Camera({ 0, 0, -1 });
 
@@ -49,13 +56,13 @@ int main()
     uchar4* gpu_result;
     size_t* gpu_pitch;
     size_t cpu_pitch;
-    shader_t* gpu_shaders;
+    material_t* gpu_shaders;
 
     cudaError_t status;
     // tree
-    status = cudaMalloc(&gpu_tree, sizeof(node_t) * compiled.size());
+    status = cudaMalloc(&gpu_tree, sizeof(node_t) * model.getSize());
     assert(!status);
-    status = cudaMemcpy(gpu_tree, compiled.data(), sizeof(node_t) * compiled.size(), cudaMemcpyHostToDevice);
+    status = cudaMemcpy(gpu_tree, model.getData(), sizeof(node_t) * model.getSize(), cudaMemcpyHostToDevice);
     assert(!status);
 
     // camera
@@ -73,10 +80,17 @@ int main()
     assert(!status);
 
     // shaders
-    status = cudaMalloc(&gpu_shaders, sizeof(shader_t) * num_shaders);
+    status = cudaMalloc(&gpu_shaders, sizeof(material_t) * num_shaders);
     assert(!status);
-    status = cudaMemcpy(gpu_shaders, &shaders, sizeof(shader_t) * num_shaders, cudaMemcpyHostToDevice);
+    status = cudaMemcpy(gpu_shaders, &shaders, sizeof(material_t) * num_shaders, cudaMemcpyHostToDevice);
     assert(!status);
+
+    // model
+    // status = cudaMalloc(&gpu_model, sizeof(Model));
+    // assert(!status);
+    // status = cudaMemcpy(gpu_model, &model, sizeof(Model), cudaMemcpyHostToDevice);
+    // assert(!status);
+
 
     GLuint fbo = 0;
     glGenFramebuffers(1, &fbo);
@@ -89,6 +103,7 @@ int main()
         status = cudaMemcpy(gpu_camera, &mainCamera, sizeof(Camera), cudaMemcpyHostToDevice);
         assert(!status);
 
+        // renderModel<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_result, gpu_pitch, gpu_model);
         render<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_tree, gpu_result, gpu_pitch, gpu_shaders);
         cudaArray_t arr = window.map(tex_GPU);
         // copy        
@@ -129,7 +144,7 @@ int main()
     return 0;
 }
 
-__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, shader_t* shaders) {
+__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, material_t* shaders) {
     const uchar4 CLEAR_COLOUR = make_uchar4(127, 127, 127, 127);
     const float focal_length = 1;
     const float3 lower_left = make_float3(-1, -1, 0);
@@ -170,16 +185,6 @@ __global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t*
     }
     else {
         *d = CLEAR_COLOUR;
-    }
-    if (x == X_RESOLUTION / 2) {
-        r = 0;
-        g = 255;
-        b = 0;
-    }
-    if (y == Y_RESOLUTION / 2) {
-        r = 0;
-        g = 255;
-        b = 0;
     }
 }
 

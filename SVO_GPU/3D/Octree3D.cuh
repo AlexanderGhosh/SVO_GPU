@@ -26,7 +26,7 @@ namespace _3D {
 
 		const uint32_t getShaderIndices() const;
 
-		static std::vector<node_t> compile(Octree3D* root);
+		static tree_t compile(Octree3D* root);
 
 		static std::vector<Octree3D> getDefault();
 	};
