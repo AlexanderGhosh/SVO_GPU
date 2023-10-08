@@ -32,6 +32,20 @@ __device__ static float3 abs(float3 a) {
 	return make_float3(fabsf(a.x), fabsf(a.y), fabsf(a.z));
 }
 
+
+__device__ static unsigned int elemMax(const float3& a) {
+	float m = max(a);
+	if (m == a.x) return 0;
+	if (m == a.y) return 1;
+	if (m == a.z) return 2;
+}
+__device__ static unsigned int elemMin(const float3& a) {
+	float m = min(a);
+	if (m == a.x) return 0;
+	if (m == a.y) return 1;
+	if (m == a.z) return 2;
+}
+
 __device__ static float3 operator+ (float3 a, float3 b) {
 	return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
 }

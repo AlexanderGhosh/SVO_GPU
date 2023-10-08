@@ -35,3 +35,8 @@ const float3 Ray3D::t(const float3& a) const
 {
 	return (m_coef * a) - c_coef;
 }
+
+__device__ const float3 _3D::Ray3D::point(const float t) const
+{
+	return pos_ + dir_ * t;
+}

@@ -16,7 +16,7 @@
 #include <cassert>
 using namespace _3D;
 
-__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, material_t* shaders);
+__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, material_t* materials);
 __global__ void render_headon(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch);
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -26,7 +26,7 @@ Camera mainCamera;
 int main()
 {
     QB_Loader modelLoader;
-    Model model = modelLoader.load("C:\\Users\\AGWDW\\Desktop\\untitled.qb");
+    Model model = modelLoader.load("C:\\Users\\AGWDW\\Desktop\\large.qb");
 
     Window window(X_RESOLUTION, Y_RESOLUTION);
     Texture texture(X_RESOLUTION, Y_RESOLUTION);
@@ -46,7 +46,7 @@ int main()
 
     // auto compiled = model.getData();
 
-    mainCamera = Camera({ 0, 0, -1 });
+    mainCamera = Camera({ EPSILON, EPSILON, -1 });
 
     dim3 threadsPerBlock(16, 16);
     dim3 numBlocks(X_RESOLUTION / threadsPerBlock.x, Y_RESOLUTION / threadsPerBlock.y);
@@ -144,8 +144,8 @@ int main()
     return 0;
 }
 
-__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, material_t* shaders) {
-    const uchar4 CLEAR_COLOUR = make_uchar4(127, 127, 127, 127);
+__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, material_t* materials) {
+    const uchar4 CLEAR_COLOUR = make_uchar4(127, 127, 127, 255);
     const float focal_length = 1;
     const float3 lower_left = make_float3(-1, -1, 0);
     const float3 span = make_float3(2, 2, 0);
@@ -174,6 +174,7 @@ __global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t*
     _3D::Ray3D ray(camPos, ray_direction);
 
     auto res = castRay(ray, tree);
+    ray_direction = ray.getDirection();
 
     uchar4* d = element(data, *pitch, x, y);
     unsigned char& r = d->x;
@@ -181,8 +182,22 @@ __global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t*
     unsigned char& b = d->z;
     unsigned char& a = d->w;
     if (res.hit) {
-        *d = shaders[res.shader_index];
-    }
+        const float3 light_dir = normalize(make_float3(1, -1, 1));
+        const material_t mat = materials[res.material_index];
+        float angle = light_dir.x * res.normal.x + light_dir.y * res.normal.y + light_dir.z * res.normal.z;
+        angle = clamp(EPSILON, 1, angle);
+        r = ((float) mat.x) * angle;
+        g = ((float) mat.y) * angle;
+        b = ((float) mat.z) * angle;
+
+       // r = (res.normal.x * 0.5f + 0.5f) * 255.9;
+       // g = (res.normal.y * 0.5f + 0.5f) * 255.9;
+       // b = (res.normal.z * 0.5f + 0.5f) * 255.9;
+       // r = 255;
+       // g = 255;
+       // b = 255;
+        a = 255;
+    }    
     else {
         *d = CLEAR_COLOUR;
     }

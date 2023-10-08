@@ -8,7 +8,7 @@ namespace _3D {
 	private:
 		std::array<Octree3D*, 8> children;
 		Octree3D* parent;
-		uint8_t shader_index;
+		uint8_t material_index;
 	public:
 		Octree3D();
 

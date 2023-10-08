@@ -3,7 +3,7 @@
 #include <list>
 
 using namespace _3D;
-Octree3D::Octree3D() : parent(nullptr), children(), shader_index(0)
+Octree3D::Octree3D() : parent(nullptr), children(), material_index(2)
 {
 }
 
@@ -28,7 +28,7 @@ void _3D::Octree3D::setShader(uint8_t shader)
 	if (shader > 15) {
 		throw std::exception("Shader index cannot exceed 15");
 	}
-	shader_index = shader;
+	material_index = shader;
 }
 
 const size_t Octree3D::size() const
@@ -69,7 +69,7 @@ const uint32_t _3D::Octree3D::getShaderIndices() const
 	for (auto itt = children.rbegin(); itt != children.rend(); itt++) {
 		const Octree3D* child = *itt;
 		if (child) {
-			indices |= child->shader_index & 0b1111;
+			indices |= child->material_index & 0b1111;
 		}
 		if (count++ < 7) {
 			indices <<= 4;

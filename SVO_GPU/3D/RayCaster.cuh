@@ -6,11 +6,10 @@
 
 namespace _3D {
 	struct RayCastResult3D {
-		Ray3D ray;
 		bool hit;
 		float3 pos;
-		float scale;
-		uint8_t shader_index;
+		float3 normal;
+		uint8_t material_index;
 
 		__device__ RayCastResult3D();
 	};
@@ -105,6 +104,8 @@ namespace _3D {
 	__device__ bool hits_at_all(const Ray3D& ray, const float3 front, const float3 back);
 
 	__device__ uint8_t getShaderIndex(const node_t& parent, const slot_t child_slot, const mirror_t& mirror);
+
+	__device__ void getHitDetails(RayCastResult3D& result, const float3& t_front, const Ray3D& ray, const mirror_t& mirror);
 
 	__device__ RayCastResult3D castRay(const Ray3D& ray, const node_t* tree);
 }

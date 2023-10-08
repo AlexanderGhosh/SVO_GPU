@@ -16,6 +16,8 @@ namespace _3D {
 		__device__ const float3 getPos() const;
 		__device__ const float3 getDirection() const;
 		__device__ const float3 t(const float3& a) const;
+
+		__device__ const float3 point(const float t) const;
 	};
 }
 

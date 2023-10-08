@@ -2,7 +2,7 @@
 
 using namespace _3D;
 
-RayCastResult3D::RayCastResult3D() : ray(), hit(false), pos(), scale(), shader_index(0)
+RayCastResult3D::RayCastResult3D() : hit(false), pos(), normal(), material_index(0)
 {
 }
 
@@ -207,10 +207,20 @@ uint8_t _3D::getShaderIndex(const node_t& parent, const slot_t child_slot, const
 	return (parent.shader_data >> shift) & 0b1111;
 }
 
+void _3D::getHitDetails(RayCastResult3D& result, const float3& t_front, const Ray3D& ray, const mirror_t& mirror)
+{
+	float m = max(t_front);
+	result.pos = ray.point(m);
+	uint32_t i = elemMax(t_front);
+	result.normal = make_float3(0, 0, 0);
+	if (i == 0) result.normal.x = mirror.x < 0 ? -1 : 1;
+	if (i == 1) result.normal.y = mirror.y < 0 ? -1 : 1;
+	if (i == 2) result.normal.z = mirror.z < 0 ? -1 : 1;
+}
+
 RayCastResult3D _3D::castRay(const Ray3D& ray, const node_t* tree)
 {
 	RayCastResult3D result;
-	result.ray = ray;
 	result.hit = false;
 
 	node_t parent = tree[0];
@@ -260,12 +270,13 @@ RayCastResult3D _3D::castRay(const Ray3D& ray, const node_t* tree)
 	bool isLeaf;
 	int childIdx = getChildIndex(parent.child_data, childSlot, mirror, isLeaf);
 	float3 childFront = getChildPosition(parentFront, childSlot, childScale);
+	float3 t_cf = tFunc(childFront);
 	if (isLeaf) {
 		result.hit = true;
-		result.pos = childFront;
-		result.scale = childScale;
-		result.shader_index = getShaderIndex(parent, childSlot, mirror);
-		result.pos = mirrorAround(result.pos, mirrorLine, mirror);
+		// result.pos = childFront;
+		result.material_index = getShaderIndex(parent, childSlot, mirror);
+		// result.pos = mirrorAround(result.pos, mirrorLine, mirror);
+		getHitDetails(result, t_cf, ray, mirror);
 		return result;
 	}
 
@@ -277,7 +288,7 @@ RayCastResult3D _3D::castRay(const Ray3D& ray, const node_t* tree)
 
 	node_t child;
 	float3 childCentre, childBack;
-	float3 t_cf, t_cc, t_cb;
+	float3 t_cc, t_cb;
 	float3 nextChildPos = make_float3(0, 0, 0);
 	slot_t nextChildSlot;
 	float nextChildScale = childScale;
@@ -296,10 +307,10 @@ RayCastResult3D _3D::castRay(const Ray3D& ray, const node_t* tree)
 				childIdx = getChildIndex(parent.child_data, nextChildSlot, mirror, isLeaf);
 				if (isLeaf) {
 					result.hit = true;
-					result.pos = getChildPosition(parentFront, nextChildSlot, nextChildScale);
-					result.scale = childScale;
-					result.shader_index = getShaderIndex(parent, nextChildSlot, mirror);
-					result.pos = mirrorAround(result.pos, mirrorLine, mirror);
+					// result.pos = getChildPosition(parentFront, nextChildSlot, nextChildScale);
+					result.material_index = getShaderIndex(parent, nextChildSlot, mirror);
+					// result.pos = mirrorAround(result.pos, mirrorLine, mirror);
+					getHitDetails(result, tFunc(childFront), ray, mirror);
 					return result;
 				}
 
@@ -350,10 +361,10 @@ RayCastResult3D _3D::castRay(const Ray3D& ray, const node_t* tree)
 			nextChildScale = childScale * .5f;
 			if (nextChildScale < MIN_SCALE) {
 				result.hit = true;
-				result.pos = childFront;
-				result.scale = MIN_SCALE;
-				result.shader_index = getShaderIndex(child, nextChildSlot, mirror);
-				result.pos = mirrorAround(result.pos, mirrorLine, mirror);
+				// result.pos = childFront;
+				result.material_index = getShaderIndex(child, nextChildSlot, mirror);
+				// result.pos = mirrorAround(result.pos, mirrorLine, mirror);
+				getHitDetails(result, t_cf, ray, mirror);
 				return result;
 			}
 			parentFront = childFront;
@@ -361,9 +372,9 @@ RayCastResult3D _3D::castRay(const Ray3D& ray, const node_t* tree)
 			if (isLeaf) {
 				result.hit = true;
 				result.pos = getChildPosition(parentFront, nextChildSlot, nextChildScale);
-				result.scale = nextChildScale;
-				result.shader_index = getShaderIndex(child, nextChildSlot, mirror);
-				result.pos = mirrorAround(result.pos, mirrorLine, mirror);
+				result.material_index = getShaderIndex(child, nextChildSlot, mirror);
+				// result.pos = mirrorAround(result.pos, mirrorLine, mirror);
+				getHitDetails(result, tFunc(result.pos), ray, mirror);
 				return result;
 			}
 

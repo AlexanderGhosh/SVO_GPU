@@ -1,26 +1,28 @@
 #pragma once
 #include "cuda_runtime.h"
+#include <string>
+#include <iostream>
 #include <vector>
 #include <glm.hpp>
 
 constexpr float EPSILON = 0.001f;
 constexpr float MAX_SCALE = 8;
 constexpr float MIN_SCALE = 1;
-constexpr int MAX_ITTERATIONS = 1000;
+constexpr uint32_t MAX_ITTERATIONS = 100;
 // constexpr int OCTREE_SIZE = 8;
-constexpr int PARENT_STACK_DEPTH = 3;
+constexpr uint32_t PARENT_STACK_DEPTH = 7;
 
-constexpr int X_RESOLUTION = 640;
-constexpr int Y_RESOLUTION = 640;
-constexpr int PIXEL_COUNT = X_RESOLUTION * Y_RESOLUTION;
-constexpr auto NUM_CHANNELS = 3;
-constexpr int  IMAGE_DATA_SIZE = PIXEL_COUNT * NUM_CHANNELS;
+constexpr uint32_t X_RESOLUTION = 640;
+constexpr uint32_t Y_RESOLUTION = 640;
+constexpr uint32_t PIXEL_COUNT = X_RESOLUTION * Y_RESOLUTION;
+constexpr uint32_t NUM_CHANNELS = 3;
+constexpr uint32_t  IMAGE_DATA_SIZE = PIXEL_COUNT * NUM_CHANNELS;
 
 constexpr uint32_t MATERIAL_COUNT = 15;
 
 struct node_t {
-	unsigned int child_data;
-	unsigned int shader_data;
+	uint32_t child_data;
+	uint32_t shader_data;
 };
 
 using material_t = uchar4;
@@ -67,6 +69,18 @@ __device__ __host__ static glm::mat3 get_rotation(const glm::vec3& a, const glm:
 	return res;
 }
 
+__device__ __host__ static float clamp(float min, float max, float val) {
+	if (val < min) return min;
+	if (val > max) return max;
+	return val;
+}
+
+static void assert_message(bool condition, std::string msg) {
+	if (!condition) {
+		std::cout << msg << std::endl;
+		throw std::exception("assertion not met");
+	}
+}
 
 
 #define IS_3D

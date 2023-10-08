@@ -72,7 +72,7 @@ public:
 		e = cudaGraphicsMapResources(1, &resource);
 		assert(!e);
 		e = cudaGraphicsSubResourceGetMappedArray(&prt, resource, 0, 0);
-		assert(!e);
+		assert_message(!e, cudaGetErrorString(e));
 
 		return prt;
 	}
