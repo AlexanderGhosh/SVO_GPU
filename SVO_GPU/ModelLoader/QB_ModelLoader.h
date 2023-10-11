@@ -2,6 +2,7 @@
 #include <glm.hpp>
 #include <array>
 #include <list>
+#include <map>
 #include "ModelLoader.h"
 #include "../3D/Octree3D.cuh"
 
@@ -21,7 +22,7 @@ private:
 	glm::ivec3 max_span;
 	std::array<inplace_vector, 8> splitData(inplace_vector& data, const glm::ivec3 span) const;
 
-	void recursivlyMakeTree(inplace_vector& data, _3D::Octree3D& parent, const glm::ivec3 span, std::list<_3D::Octree3D>& out) const;
+	void recursivlyMakeTree(inplace_vector& data, _3D::Octree3D& parent, const glm::ivec3 span, std::list<_3D::Octree3D>& out, std::map<uchar3, uint32_t>& colours) const;
 public:
 	QB_Loader();
 	Model load(const std::string& file) override;

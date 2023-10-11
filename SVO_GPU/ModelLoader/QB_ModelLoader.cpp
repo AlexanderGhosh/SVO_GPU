@@ -101,7 +101,8 @@ Model QB_Loader::load(const std::string& file) {
 		std::list<_3D::Octree3D> nodes = {
 			root
 		};
-		recursivlyMakeTree(data, root, { sizeX, sizeY, sizeZ }, nodes);
+		std::map<uchar3, uint32_t> colours;
+		recursivlyMakeTree(data, root, { sizeX, sizeY, sizeZ }, nodes, colours);
 		tree_t compiled = _3D::Octree3D::compile(&root);
 		return Model(compiled);
 	}
@@ -128,7 +129,7 @@ std::array<QB_Loader::inplace_vector, 8> QB_Loader::splitData(QB_Loader::inplace
 	return res;
 }
 
-void QB_Loader::recursivlyMakeTree(QB_Loader::inplace_vector& data, _3D::Octree3D& parent, const glm::ivec3 span, std::list<_3D::Octree3D>& out) const {
+void QB_Loader::recursivlyMakeTree(QB_Loader::inplace_vector& data, _3D::Octree3D& parent, const glm::ivec3 span, std::list<_3D::Octree3D>& out, std::map<uchar3, uint32_t>& colours) const {
 	auto addNode = [&]() -> _3D::Octree3D& {
 			out.push_back({});
 			return out.back();
@@ -149,7 +150,7 @@ void QB_Loader::recursivlyMakeTree(QB_Loader::inplace_vector& data, _3D::Octree3
 		
 
 		auto& child = addNode();
-		recursivlyMakeTree(d, child, span / 2, out);
+		recursivlyMakeTree(d, child, span / 2, out, colours);
 		if (child.size() == 0) {
 			out.pop_back();
 			continue;
