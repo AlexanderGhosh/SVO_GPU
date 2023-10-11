@@ -11,12 +11,13 @@
 
 #include "ModelLoader/QB_ModelLoader.h"
 #include "ModelLoader/Model.h"
+#include "NewRayCaster.cuh"
 
 #include <stdio.h>
 #include <cassert>
 using namespace _3D;
 
-__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, material_t* materials);
+__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, Material* materials);
 __global__ void render_headon(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch);
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -26,19 +27,24 @@ Camera mainCamera;
 int main()
 {
     QB_Loader modelLoader;
-    Model model = modelLoader.load("C:\\Users\\AGWDW\\Desktop\\large.qb");
+    Model model = modelLoader.load("C:\\Users\\AGWDW\\Desktop\\test2.qb");
+    ModelDetails dets;
+    dets.span = { 0.25, 2 };
+    dets.position = make_float3(0, 0, 0);
+
+    // test(tree_t(model.getData(), model.getData() + model.getSize()));
 
     Window window(X_RESOLUTION, Y_RESOLUTION);
+
     Texture texture(X_RESOLUTION, Y_RESOLUTION);
     cudaGraphicsResource_t tex_GPU = window.linkCUDA(texture);
 
-    const uint8_t num_shaders = 5;
-    material_t shaders[num_shaders] = {
-        { 0, 0, 0, 255 },
-        { 255, 255, 255, 255 },
-        { 255, 0, 0, 255 },
-        { 0, 255, 0, 255 },
-        { 0, 0, 255, 255 },
+    Material shaders[MATERIAL_COUNT] = {
+        Material(make_uchar3(0, 0, 0),     0.5f, 0.07f),      
+        Material(make_uchar3(255, 255, 0), 0.5f, 0.07f),
+        Material(make_uchar3(255, 0, 0),   0.5f, 0.07f),
+        Material(make_uchar3(0, 255, 0),   0.5f, 0.07f),
+        Material(make_uchar3(0, 0, 255),   0.5f, 0.07f)
     };
 
     // auto tree = Octree3D::getDefault();
@@ -46,9 +52,9 @@ int main()
 
     // auto compiled = model.getData();
 
-    mainCamera = Camera({ EPSILON, EPSILON, -1 });
+    mainCamera = Camera({ 0, 0, -1 });
 
-    dim3 threadsPerBlock(16, 16);
+    dim3 threadsPerBlock(25, 25);
     dim3 numBlocks(X_RESOLUTION / threadsPerBlock.x, Y_RESOLUTION / threadsPerBlock.y);
 
     node_t* gpu_tree;
@@ -56,7 +62,8 @@ int main()
     uchar4* gpu_result;
     size_t* gpu_pitch;
     size_t cpu_pitch;
-    material_t* gpu_shaders;
+    Material* gpu_materials;
+    ModelDetails* gpu_modelDetails;
 
     cudaError_t status;
     // tree
@@ -80,9 +87,15 @@ int main()
     assert(!status);
 
     // shaders
-    status = cudaMalloc(&gpu_shaders, sizeof(material_t) * num_shaders);
+    status = cudaMalloc(&gpu_materials, sizeof(Material) * MATERIAL_COUNT);
     assert(!status);
-    status = cudaMemcpy(gpu_shaders, &shaders, sizeof(material_t) * num_shaders, cudaMemcpyHostToDevice);
+    status = cudaMemcpy(gpu_materials, &shaders, sizeof(Material) * MATERIAL_COUNT, cudaMemcpyHostToDevice);
+    assert(!status);
+
+    // modelDetails
+    status = cudaMalloc(&gpu_modelDetails, sizeof(ModelDetails));
+    assert(!status);
+    status = cudaMemcpy(gpu_modelDetails, &dets, sizeof(ModelDetails), cudaMemcpyHostToDevice);
     assert(!status);
 
     // model
@@ -99,12 +112,29 @@ int main()
     GLFWwindow* win = window.getWindow();
     glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(win, mouse_callback);
+    cudaEvent_t start, stop;
+    float totalTime = 0;
+    uint32_t frameCount = 0;
     while (!glfwWindowShouldClose(win)) {
         status = cudaMemcpy(gpu_camera, &mainCamera, sizeof(Camera), cudaMemcpyHostToDevice);
         assert(!status);
 
-        render<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_tree, gpu_result, gpu_pitch, gpu_shaders);
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start);
 
+        render_new<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_tree, gpu_materials, gpu_modelDetails, gpu_pitch, gpu_result);
+        // render<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_tree, gpu_result, gpu_pitch, gpu_materials);
+
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop); 
+        float time = 0;
+        cudaEventElapsedTime(&time, start, stop);
+        totalTime += time;
+        frameCount++;
+        
+
+        //render_headon << <numBlocks, threadsPerBlock >> > (gpu_camera, gpu_tree, gpu_result, gpu_pitch);
         cudaArray_t arr = window.map(tex_GPU);
         // copy        
         status = cudaMemcpy2DToArray(arr, 0, 0, gpu_result, cpu_pitch, X_RESOLUTION * sizeof(uchar4), Y_RESOLUTION, cudaMemcpyDefault);
@@ -133,6 +163,8 @@ int main()
         processInput(win, delta);
     }
 
+    printf("Time to generate:  %3.1f ms \n", totalTime / (float)frameCount);
+
     glDeleteFramebuffers(1, &fbo);
 
     cudaFree(gpu_tree);
@@ -144,15 +176,16 @@ int main()
     return 0;
 }
 
-__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, material_t* materials) {
+__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, Material* materials) {
     const uchar4 CLEAR_COLOUR = make_uchar4(127, 127, 127, 255);
     const float focal_length = 1;
-    const float3 lower_left = make_float3(-1, -1, 0);
-    const float3 span = make_float3(2, 2, 0);
     const float3 camPos = make_float3(camera->Position);
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    // x = 500;
+    // y = 600;
 
     const float width = X_RESOLUTION;  // pixels across
     const float height = Y_RESOLUTION;  // pixels high
@@ -183,12 +216,13 @@ __global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t*
     unsigned char& a = d->w;
     if (res.hit) {
         const float3 light_dir = normalize(make_float3(1, -1, 1));
-        const material_t mat = materials[res.material_index];
+        const Material mat = materials[res.material_index];
         float angle = light_dir.x * res.normal.x + light_dir.y * res.normal.y + light_dir.z * res.normal.z;
         angle = clamp(EPSILON, 1, angle);
-        r = ((float) mat.x) * angle;
-        g = ((float) mat.y) * angle;
-        b = ((float) mat.z) * angle;
+        angle = 1;
+        r = ((float) mat.diffuse.x) * angle;
+        g = ((float) mat.diffuse.y) * angle;
+        b = ((float) mat.diffuse.z) * angle;
 
        // r = (res.normal.x * 0.5f + 0.5f) * 255.9;
        // g = (res.normal.y * 0.5f + 0.5f) * 255.9;
@@ -201,6 +235,9 @@ __global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t*
     else {
         *d = CLEAR_COLOUR;
     }
+    if (x > 500 && x < 510 && y > 600 && y < 610) {
+        g = 255;
+    }
 }
 
 __global__ void render_headon(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch) {
@@ -212,13 +249,21 @@ __global__ void render_headon(const Camera* camera, node_t* tree, uchar4* data, 
     float u = float(x) / float(X_RESOLUTION);
     float v = float(y) / float(Y_RESOLUTION);
 
-    float3 rayPos = make_float3(u * 8, v * 8, -1);
+    /*float3 rayPos = make_float3(u * 8, v * 8, -1);
     float3 rayDir = make_float3(0, 0, 1);
     rayPos.x += camera->Position.x;
     rayPos.y += camera->Position.y;
     rayPos.z += camera->Position.z;
 
-    _3D::Ray3D ray(rayPos, rayDir);
+    _3D::Ray3D ray(rayPos, rayDir);*/
+
+    float3 rayPos = make_float3(u * 8, v * 8, 1);
+    float3 rayDir = make_float3(0, 0, 1);
+    // rayPos.x += camera->Position.x;
+    // rayPos.y += camera->Position.y;
+    // rayPos.z += camera->Position.z;
+
+    _3D::Ray3D ray(make_float3(0, 0, -1), rayPos);
 
     auto res = castRay(ray, tree);
 

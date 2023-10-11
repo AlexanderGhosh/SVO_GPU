@@ -15,21 +15,16 @@ class Window {
 		auto t = glfwInit() == GLFW_TRUE;
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); 
+		glfwWindowHint(GLFW_SAMPLES, 4);
+		glEnable(GL_MULTISAMPLE);
 		window = glfwCreateWindow(xSize, ySize, "SVO CUDA", nullptr, nullptr);
 		glfwMakeContextCurrent(window);
 
 		glewInit();
 
 		glViewport(0, 0, xSize, ySize);
-
-
-		/*while (!glfwWindowShouldClose(window))
-		{
-			glfwSwapBuffers(window);
-			glfwPollEvents();
-		}*/
-	}
+			}
 
 public:
 	Window() : window(nullptr), xSize(0), ySize(0) { }
@@ -49,19 +44,10 @@ public:
 
 	cudaGraphicsResource_t linkCUDA(Texture& tex) {
 		cudaGraphicsResource_t img_GPU = 0;
-		//void* img_GPU_prt;
-		//size_t mapped_size;
-		//cudaArray_t data_GPU;
+
 		cudaError_t e;
 		tex.bind();
 		e = cudaGraphicsGLRegisterImage(&img_GPU, tex.getId(), GL_TEXTURE_2D, cudaGraphicsRegisterFlagsNone);
-
-		//e = cudaGraphicsMapResources(1, &img_GPU);
-		//e = cudaGraphicsResourceGetMappedPointer(&img_GPU_prt, &mapped_size, img_GPU);
-
-		//e = cudaGraphicsSubResourceGetMappedArray(&data_GPU, img_GPU, 0, 0);
-
-		//e = cudaGraphicsUnmapResources(1, &img_GPU);
 		return img_GPU;
 	}
 
