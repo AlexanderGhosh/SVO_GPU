@@ -3,7 +3,7 @@
 #include "../VectorMaths.cuh"
 
 using namespace _3D;
-Ray3D::Ray3D() : pos_(), dir_(), m_coef(), c_coef()
+Ray3D::Ray3D() : pos_(), dir_(), m_coef(), c_coef(), dir_inv_()
 {
 }
 
@@ -19,6 +19,7 @@ Ray3D::Ray3D(const float3& pos, const float3& dir) : Ray3D()
 	m_coef = make_float3(1, 1, 1) / dir_;
 	c_coef = m_coef * pos_;
 	
+	dir_inv_ = make_float3(1.f / dir_.x, 1.f / dir_.y, 1.f / dir_.z);
 }
 
 const float3 Ray3D::getPos() const

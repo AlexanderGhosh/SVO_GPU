@@ -105,6 +105,7 @@
     <ClInclude Include="ModelLoader\Model.h" />
     <ClInclude Include="ModelLoader\ModelLoader.h" />
     <ClInclude Include="ModelLoader\QB_ModelLoader.h" />
+    <ClInclude Include="NewRayCaster.cuh" />
     <ClInclude Include="OpenGL\Buffer.h" />
     <ClInclude Include="OpenGL\PixelBuffer.h" />
     <ClInclude Include="OpenGL\Texture.h" />
