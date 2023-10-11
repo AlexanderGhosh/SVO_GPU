@@ -6,14 +6,14 @@
 #include <glm.hpp>
 
 constexpr float EPSILON = 0.001f;
-constexpr float MAX_SCALE = 8;
+constexpr float MAX_SCALE = 64;
 constexpr float MIN_SCALE = 1;
 constexpr uint32_t MAX_ITTERATIONS = 100;
 // constexpr int OCTREE_SIZE = 8;
 constexpr uint32_t PARENT_STACK_DEPTH = 7;
 
-constexpr uint32_t X_RESOLUTION = 640;
-constexpr uint32_t Y_RESOLUTION = 640;
+constexpr uint32_t X_RESOLUTION = 800;
+constexpr uint32_t Y_RESOLUTION = 800;
 constexpr uint32_t PIXEL_COUNT = X_RESOLUTION * Y_RESOLUTION;
 constexpr uint32_t NUM_CHANNELS = 3;
 constexpr uint32_t  IMAGE_DATA_SIZE = PIXEL_COUNT * NUM_CHANNELS;

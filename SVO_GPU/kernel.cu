@@ -184,8 +184,8 @@ __global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t*
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    x = 500;
-    y = 600;
+    // x = 500;
+    // y = 600;
 
     const float width = X_RESOLUTION;  // pixels across
     const float height = Y_RESOLUTION;  // pixels high

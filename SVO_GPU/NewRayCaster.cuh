@@ -10,37 +10,16 @@ __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model
 struct StackItem_ {
 	int32_t parentIdx;
 	uint8_t slot;
-	__host__ __device__ StackItem_() : parentIdx(-1), slot(0) { }
-	__host__ __device__ StackItem_(int32_t p, uint8_t s) : parentIdx(p), slot(s) { }
 };
-template<uint8_t length>
 class Stack_ {
 public:
-	__host__ __device__ Stack_() : data(), size(0) { }
-	__host__ __device__ void push(int32_t parent, uint8_t slot, uint8_t scale) { item(scale) = {parent, slot}; }
-	__host__ __device__ StackItem_ pop(uint8_t& scale) 
-	{ 
-		uint8_t idx = index(scale);
-		auto res = pop_index(idx);
-		scale = powf(2, idx);
-		return res;
-	}
+	__host__ __device__ Stack_() : data_(), size_(0) { }
+	__host__ __device__ void push(int32_t parent, uint8_t slot) { data_[size_++] = { parent, slot }; }
+	__host__ __device__ StackItem_& pop() { return data_[--size_]; }
+	__host__ __device__ const uint8_t size() const { return size_; };
 private:
-	__host__ __device__ StackItem_ pop_index(uint8_t& index)
-	{
-		auto res = data[index];
-		res = res.parentIdx >= 0 ? res : pop_index(++index);
-		data[index].parentIdx = -1;
-		return res;
-	}
-	__host__ __device__ uint8_t index(float scale) {
-		return log2f(scale);
-	}
-	__host__ __device__ StackItem_& item(float scale) {
-		return data[index(scale)];
-	}
-	StackItem_ data[length];
-	int size;
+	StackItem_ data_[3];
+	uint8_t size_;
 };
 
 struct CastResult {
@@ -133,50 +112,59 @@ __global__ void render_new(const Camera* camera, node_t* tree, material_t* mater
 }
 
 void test(tree_t tree) {
+	return;
 	const float3 camPos = make_float3(0, 0, -1);
 	const float3 right = make_float3(-1, 0, 0);
 	const float3 up = make_float3(0, 1, 0);
 	const float3 front = make_float3(0, 0, 1);
 
-	int x = 500;
-	int y = 600;
-
 	const float width = X_RESOLUTION;  // pixels across
 	const float height = Y_RESOLUTION;  // pixels high
-	float normalized_i = (x / width) - 0.5;
-	float normalized_j = (y / height) - 0.5;
-	float3 ri = right;
-	ri.x *= -normalized_i;
-	ri.y *= -normalized_i;
-	ri.z *= -normalized_i;
-	float3 u = up;
-	u.x *= normalized_j;
-	u.y *= normalized_j;
-	u.z *= normalized_j;
-	float3 image_point = ri + u + camPos + front * 1;
 
-	float3 ray_direction = image_point - camPos;
-
-
-	_3D::Ray3D ray(camPos, ray_direction);
 	Model_ m;
 	m.tree = tree.data();
 	m.details = ModelDetails();
 	m.details.span = { 1, 8 };
 	float tmax = 0;
-	auto res = castRay(ray, m, tmax);
 
-	if (res.hit) {
+	for (int x = 0; x < width; x++) {
+		for (int y = 0; y < height; y++) {
+			float normalized_i = (x / width) - 0.5;
+			float normalized_j = (y / height) - 0.5;
+			float3 ri = right;
+			ri.x *= -normalized_i;
+			ri.y *= -normalized_i;
+			ri.z *= -normalized_i;
+			float3 u = up;
+			u.x *= normalized_j;
+			u.y *= normalized_j;
+			u.z *= normalized_j;
+			float3 image_point = ri + u + camPos + front * 1;
 
+			float3 ray_direction = image_point - camPos;
+
+
+			_3D::Ray3D ray(camPos, ray_direction);
+
+			if (x == 480 && y == 480) {
+				int t = 0;
+			}
+
+			auto res = castRay(ray, m, tmax);
+
+			if (res.hit) {
+
+			}
+		}
 	}
+
 }
 
-__host__ __device__ float3 getChildFront(const float3& pf, uint8_t slot, float scale) {
-	float3 cf = pf;
-	if (slot & 1) cf.x += scale;
-	if (slot & 2) cf.y += scale;
-	if (slot & 4) cf.z += scale;
-	return cf;
+__host__ __device__ float3 getChildFront(float3 pf, uint8_t slot, float scale) {
+	pf.x += slot & 1 ? scale : 0;
+	pf.y += slot & 2 ? scale : 0;
+	pf.z += slot & 4 ? scale : 0;
+	return pf;
 }
 
 __host__ __device__ int getChildIndex_(const uint32_t parent, const uint8_t child_slot)
@@ -209,36 +197,39 @@ __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model
 	const uint32_t minScale = model.details.span.x;
 	const uint32_t maxScale = model.details.span.y;
 
-	// scale of the child
-	uint8_t scale = maxScale;
-	// half scale of the child
+	float scale = maxScale;
 	float half = scale * .5f;
 
 	node_t parent = tree[0];
-	Stack_<7> parent_stack; // allows for a maximum scale of 64
+	Stack_ parent_stack; // allows for a maximum scale of 64
 
-	float3 mirror = make_float3(0, 0, 0);
+	float3 pmin = make_float3(0, 0, 0);
+	// float3 mirroredOrigin = make_float3(0, 0, 0);
+	float3 rayPos = ray.getPos();
+
 	uint8_t mirrorMask = 0;
 	if (ray.dir_inv_.x < 0) {
 		mirrorMask ^= 1; 
-		mirror.x = 1;
+		rayPos.x = 2 * scale - rayPos.x;
+		pmin.x = scale;
 	}
 	if (ray.dir_inv_.y < 0) {
-		mirrorMask ^= 2; 
-		mirror.y = 1;
+		mirrorMask ^= 2;
+		rayPos.y = 2 * scale - rayPos.y;
+		pmin.y = scale;
 	}
 	if (ray.dir_inv_.z < 0) {
-		mirrorMask ^= 4; 
-		mirror.z = 1;
+		mirrorMask ^= 4;
+		rayPos.z = 2 * scale - rayPos.z;
+		pmin.z = scale;
 	}
-	float3 mirroredOrigin = mirror * scale;
+	// float3 mirroredOrigin = mirror * scale;
 
 	float3 inv_ray_dir = abs(ray.dir_inv_);
-	float3 rayPos = ray.getPos(); // needs to mirror
 
-	if (mirrorMask & 1) rayPos.x = 2 * mirroredOrigin.x - rayPos.x;
-	if (mirrorMask & 2) rayPos.y = 2 * mirroredOrigin.y - rayPos.y;
-	if (mirrorMask & 4) rayPos.z = 2 * mirroredOrigin.z - rayPos.z;
+	// if (mirrorMask & 1) rayPos.x = 2 * pmin.x - rayPos.x;
+	// if (mirrorMask & 2) rayPos.y = 2 * pmin.y - rayPos.y;
+	// if (mirrorMask & 4) rayPos.z = 2 * pmin.z - rayPos.z;
 
 	auto tFunc = [&](const float3& a) -> const float3& {
 		return (a - rayPos) * inv_ray_dir;
@@ -249,7 +240,7 @@ __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model
 	float tmin = 0;
 	float tmax = 0;
 
-	float3 pmin = mirroredOrigin;
+	// float3 pmin = mirroredOrigin;
 	float3 pcen = pmin + half;
 	float3 pmax = pmin + scale;
 
@@ -275,9 +266,14 @@ __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model
 
 
 	uint8_t childSlot = 0;
-	if (t_pc.x <= tmin) childSlot ^= 1;
-	if (t_pc.y <= tmin) childSlot ^= 2;
-	if (t_pc.z <= tmin) childSlot ^= 4;
+	// if (t_pc.x <= tmin) childSlot ^= 1;
+	// if (t_pc.y <= tmin) childSlot ^= 2;
+	// if (t_pc.z <= tmin) childSlot ^= 4;
+
+	childSlot ^= t_pc.x <= tmin ? 1 : 0;
+	childSlot ^= t_pc.y <= tmin ? 2 : 0;
+	childSlot ^= t_pc.z <= tmin ? 4 : 0;
+
 	childSlot %= 7;
 
 	scale = half;
@@ -286,22 +282,30 @@ __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model
 	bool _;
 	int32_t idx = 0;
 	uint8_t ittertion = 0;
+	bool forcePop = false;
+	uint32_t delta = 0;
+	float3 cmin;
+	float3 t_cf;
+	float3 ccen;
+	float3 t_cc;
+	float3 cmax;
+	float3 t_cb;
+	float tc_max;
+	uint8_t mirroredChildSlot;
+	uint8_t validMask;
+	//float3 t_pb;
+	uint8_t prevSlot;
+	StackItem_ item;
 	while (ittertion++ < MAX_ITTERATIONS) {
 		parent = tree[idx];
 
-		float3 cmin = getChildFront(pmin, childSlot, scale);
-		float3 t_cf = tFunc(cmin);
+		cmin = getChildFront(pmin, childSlot, scale);
+		t_cf = tFunc(cmin);
 		tmin = max(t_cf);
-		float3 ccen = cmin + half;
-		float3 t_cc = tFunc(ccen);
 
-		float3 cmax = cmin + scale;
-		float3 t_cb = tFunc(cmax);
-		float tc_max = min(t_cb);
-
-		uint8_t mirroredChildSlot = childSlot ^ mirrorMask;
-		uint8_t validMask = parent.child_data >> 8;
-		if (validMask >> mirroredChildSlot & 0x1) {
+		mirroredChildSlot = childSlot ^ mirrorMask;
+		validMask = parent.child_data >> 8;
+		if (validMask >> mirroredChildSlot & 0x1 && !forcePop) {
 			// child is valid
 			if (parent.child_data >> mirroredChildSlot & 0x1 || half < minScale) {
 				// is leaf
@@ -312,19 +316,27 @@ __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model
 
 
 			// PUSH
-			if (tc_max < tmax) {
-				parent_stack.push(idx, childSlot, scale * 2);
-			}
+			/*if (tc_max < tmax) {
+			* can prevent the pushing parents which will just be popped anyways
+			}*/
+			parent_stack.push(idx, childSlot);
 			idx = getChildIndex_(parent.child_data, mirroredChildSlot);
 			parent = tree[idx];
 
 
+			ccen = cmin + half;
+			t_cc = tFunc(ccen);
+
 			// the next child
 			childSlot = 0;
-			if (t_cc.x <= tmin) childSlot ^= 1;
-			if (t_cc.y <= tmin) childSlot ^= 2;
-			if (t_cc.z <= tmin) childSlot ^= 4;
-			childSlot %= 7;
+			// if (t_cc.x <= tmin) childSlot ^= 1;
+			// if (t_cc.y <= tmin) childSlot ^= 2;
+			// if (t_cc.z <= tmin) childSlot ^= 4;
+
+			childSlot ^= t_cc.x <= tmin ? 1 : 0;
+			childSlot ^= t_cc.y <= tmin ? 2 : 0;
+			childSlot ^= t_cc.z <= tmin ? 4 : 0;
+			// childSlot %= 7;
 
 			pmin = cmin;
 			scale = half;
@@ -332,9 +344,9 @@ __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model
 			t_pf = tFunc(pmin);
 			tmin = max(t_pf);
 
-			pmax = pmin + scale;
-			float3 t_pb = tFunc(pmax);
-			tmax = min(t_pb);
+			// pmax = pmin + scale;
+			// t_pb = tFunc(pmax);
+			// tmax = min(t_pb);
 
 			continue;
 			
@@ -346,31 +358,50 @@ __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model
 		}
 		// tmax = tc_max;
 
-		uint8_t prevSlot = childSlot;
-		if (t_cb.x <= tc_max) childSlot ^= 1;
-		if (t_cb.y <= tc_max) childSlot ^= 2;
-		if (t_cb.z <= tc_max) childSlot ^= 4;
-		if (prevSlot & ~childSlot) {
+		cmax = cmin + scale;
+		t_cb = tFunc(cmax);
+		tc_max = min(t_cb);
+
+		prevSlot = childSlot;
+		// if (t_cb.x <= tc_max) childSlot ^= 1;
+		// if (t_cb.y <= tc_max) childSlot ^= 2;
+		// if (t_cb.z <= tc_max) childSlot ^= 4;
+		childSlot ^= t_cb.x <= tc_max ? 1 : 0;
+		childSlot ^= t_cb.y <= tc_max ? 2 : 0;
+		childSlot ^= t_cb.z <= tc_max ? 4 : 0;
+
+		if (forcePop || prevSlot & ~childSlot) {
 			// POP
-			uint32_t delta = prevSlot ^ childSlot;
-			scale *= 2; // now the scale of the parent to be poped off
-			auto item = parent_stack.pop(scale);
+			if (!parent_stack.size()) {
+				return result;
+			}
+
+			delta = forcePop ? delta : prevSlot ^ childSlot;
+			item = parent_stack.pop();
 			idx = item.parentIdx;
 			childSlot = item.slot ^ delta;
 
-			if (delta & item.slot) {
-				// will be called incorreclty if you need to pop more than once in a row
-				return result;
-			}
-			half = scale * 2;
+			forcePop = delta & item.slot;
+			// if (delta & item.slot) {
+			// 	 // will be called incorreclty if you need to pop more than once in a row
+			// 	 forcePop = true;
+			// 	 // return result;
+			// }
 
-			if (item.slot & 1) pmin.x -= scale;
-			if (item.slot & 2) pmin.y -= scale;
-			if (item.slot & 4) pmin.z -= scale;
+			// if (item.slot & 1) pmin.x -= scale * 2.f;
+			// if (item.slot & 2) pmin.y -= scale * 2.f;
+			// if (item.slot & 4) pmin.z -= scale * 2.f;
+
+			half = scale;
+			scale *= 2;
+
+			pmin.x -= item.slot & 1 ? scale : 0;
+			pmin.y -= item.slot & 2 ? scale : 0;
+			pmin.z -= item.slot & 4 ? scale : 0;
 
 
-			t_pf = tFunc(pmin);
-			tmin = max(t_pf);
+			// t_pf = tFunc(pmin);
+			// tmin = max(t_pf);
 		}
 	}
 
