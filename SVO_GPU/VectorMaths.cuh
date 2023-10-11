@@ -46,6 +46,11 @@ __host__ __device__ static unsigned int elemMin(const float3& a) {
 	if (m == a.z) return 2;
 }
 
+__host__ __device__ static float dot(const float3& a, const float3& b) {
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+
 __host__ __device__ static float3 operator+ (float3 a, float3 b) {
 	return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
 }
@@ -69,6 +74,9 @@ __host__ __device__ static float3 operator* (float3 a, float b) {
 	return make_float3(a.x * b, a.y * b, a.z * b);
 }
 
+__host__ __device__ static float3 operator- (float3 a) {
+	return make_float3(-a.x, -a.y, -a.z);
+}
 
 
 __host__ __device__ static void operator-= (float3& a, float3 b) {
@@ -80,4 +88,9 @@ __host__ __device__ static void operator-= (float3& a, float b) {
 
 __host__ __device__ static void operator*= (float3& a, float b) {
 	a = make_float3(a.x * b, a.y * b, a.z * b);
+}
+
+
+__host__ __device__ static float3 reflect(const float3& l, const float3& n) {
+	return (n - l) * 2.f * dot(l, n);
 }

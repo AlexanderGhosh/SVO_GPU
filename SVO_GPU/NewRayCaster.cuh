@@ -1,6 +1,8 @@
 #include "Constants.cuh"
 #include "VectorMaths.cuh"
 #include "3D/Ray3D.cuh"
+#include "math_functions.h"
+#include "Material.cuh"
 
 struct CastResult;
 struct Model_;
@@ -33,16 +35,52 @@ struct ModelDetails {
 	float3 position;
 	float4 rotation;
 
-	uint2 span;
+	float2 span;
+
+	__host__ __device__ ModelDetails() : position(make_float3(0, 0, 0)), rotation(make_float4(0, 0, 0, 0)), span(make_float2(0, 0)) { }
 };
 
 struct Model_ {
 	ModelDetails details;
 	node_t* tree;
-	material_t* materials;
+	Material* materials;
 };
 
-__global__ void render_new(const Camera* camera, node_t* tree, material_t* materials, ModelDetails* details, size_t* pitch, uchar4* out) {
+__host__ __device__ float3 toColour(uchar3 c) {
+	return make_float3(c.x / 255.9f, c.y / 255.9f, c.z / 255.9f);
+}
+
+__host__ __device__ uchar3 fromColour(float3 c) {
+	return make_uchar3(c.x * 255.9f, c.y * 255.9f, c.z * 255.9f);
+}
+
+__host__ __device__ uchar4 bling_phong(const Material& mat, const CastResult& dets, const float3& lightDir, const _3D::Ray3D& ray) {
+	const float3 c = toColour(mat.diffuse);
+	float3 amb = c * AMBIENT;
+
+	float ln = clamp(0, 1, dot(lightDir, dets.faceNormal));
+	float3 dif = c * ln * mat.diffuseC;
+
+	float3 r = reflect(lightDir, dets.faceNormal);
+	float3 v = -ray.getDirection();
+
+	float rv = clamp(0, 1, dot(r, v));
+
+	float spc_ = powf(rv, SPECULAR_ALPHA) * mat.specularC;
+	float3 spc = make_float3(spc_, spc_, spc_);
+
+	float3 s = amb + dif + spc;
+	uchar3 t_ = fromColour(s);
+	uchar4 res{};
+	res.x = t_.x;
+	res.y = t_.y;
+	res.z = t_.z;
+	res.w = 255;
+	return res;
+}
+
+
+__global__ void render_new(const Camera* camera, node_t* tree, Material* materials, ModelDetails* details, size_t* pitch, uchar4* out) {
 	Model_ m;
 	m.tree = tree;
 	m.materials = materials;
@@ -57,8 +95,6 @@ __global__ void render_new(const Camera* camera, node_t* tree, material_t* mater
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-	// x = 500;
-	// y = 600;
 
 	const float width = X_RESOLUTION;  // pixels across
 	const float height = Y_RESOLUTION;  // pixels high
@@ -89,21 +125,20 @@ __global__ void render_new(const Camera* camera, node_t* tree, material_t* mater
 	unsigned char& b = d->z;
 	unsigned char& a = d->w;
 	if (res.hit) {
-		const float3 light_dir = normalize(make_float3(1, -1, 1));
-		const material_t mat = materials[res.materialIndex];
-		float angle = light_dir.x * res.faceNormal.x + light_dir.y * res.faceNormal.y + light_dir.z * res.faceNormal.z;
-		angle = clamp(EPSILON, 1, angle);
-		angle = 1;
-		r = ((float)mat.x) * angle;
-		g = ((float)mat.y) * angle;
-		b = ((float)mat.z) * angle;
+		// const float3 light_dir = normalize(make_float3(1, -1, 1));
+		const Material& mat = materials[res.materialIndex];
+		// float angle = light_dir.x * res.faceNormal.x + light_dir.y * res.faceNormal.y + light_dir.z * res.faceNormal.z;
+		// angle = clamp(EPSILON, 1, angle);
+		// angle = 1;
+		// r = ((float)mat.x) * angle;
+		// g = ((float)mat.y) * angle;
+		// b = ((float)mat.z) * angle;
 
-		// r = (res.normal.x * 0.5f + 0.5f) * 255.9;
-		// g = (res.normal.y * 0.5f + 0.5f) * 255.9;
-		// b = (res.normal.z * 0.5f + 0.5f) * 255.9;
-		r = 255;
-		g = 255;
-		b = 0;
+		// r = (res.faceNormal.x * 0.5f + 0.5f) * 255.9;
+		// g = (res.faceNormal.y * 0.5f + 0.5f) * 255.9;
+		// b = (res.faceNormal.z * 0.5f + 0.5f) * 255.9;
+
+		*d = bling_phong(mat, res, -normalize(make_float3(1, -1, 1)), ray);
 		a = 255;
 	}
 	else {
@@ -112,7 +147,6 @@ __global__ void render_new(const Camera* camera, node_t* tree, material_t* mater
 }
 
 void test(tree_t tree) {
-	return;
 	const float3 camPos = make_float3(0, 0, -1);
 	const float3 right = make_float3(-1, 0, 0);
 	const float3 up = make_float3(0, 1, 0);
@@ -145,22 +179,18 @@ void test(tree_t tree) {
 
 
 			_3D::Ray3D ray(camPos, ray_direction);
-
-			if (x == 480 && y == 480) {
-				int t = 0;
-			}
+			
 
 			auto res = castRay(ray, m, tmax);
 
 			if (res.hit) {
-
 			}
 		}
 	}
 
 }
 
-__host__ __device__ float3 getChildFront(float3 pf, uint8_t slot, float scale) {
+__host__ __device__ __inline__ float3 getChildFront(float3 pf, uint8_t slot, float scale) {
 	pf.x += slot & 1 ? scale : 0;
 	pf.y += slot & 2 ? scale : 0;
 	pf.z += slot & 4 ? scale : 0;
@@ -189,8 +219,28 @@ __host__ __device__ int getChildIndex_(const uint32_t parent, const uint8_t chil
 	return -1;
 }
 
+__host__ __device__ float3 getNormal(const float tmin, const float3& t_cf, const uint8_t mirrorMask) {
+	float3 norm = make_float3(0, 0, 0);
+	norm.x = t_cf.x == tmin ? (mirrorMask & 1 ? -1 : 1) : 0;
+	norm.y = t_cf.y == tmin ? (mirrorMask & 2 ? -1 : 1) : 0;
+	norm.z = t_cf.z == tmin ? (mirrorMask & 4 ? -1 : 1) : 0;
+	// if (t_cf.x == tmin) norm.x = 1;
+	// if (t_cf.y == tmin) norm.y = 1;
+	// if (t_cf.z == tmin) norm.z = 1;
+	// if (mirrorMask & 1) norm.x *= -1;
+	// if (mirrorMask & 2) norm.y *= -1;
+	// if (mirrorMask & 4) norm.z *= -1;
+	return normalize(norm);
+}
+
+__host__ __device__ uint8_t getMaterialIndex(const node_t& parent, const uint8_t child_slot)
+{
+	uint32_t shift = child_slot * 4;
+	return (parent.shader_data >> shift) & 15;
+}
+
 __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model, float& tprev) {
-	CastResult result;
+	CastResult result{};
 	result.hit = false;
 
 	const node_t* tree = model.tree;
@@ -205,25 +255,25 @@ __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model
 
 	float3 pmin = make_float3(0, 0, 0);
 	// float3 mirroredOrigin = make_float3(0, 0, 0);
-	float3 rayPos = ray.getPos();
+	float3 rayPos = ray.getPos() - model.details.position;
 
 	uint8_t mirrorMask = 0;
 	if (ray.dir_inv_.x < 0) {
 		mirrorMask ^= 1; 
 		rayPos.x = 2 * scale - rayPos.x;
-		pmin.x = scale;
+		pmin.x += scale;
 	}
 	if (ray.dir_inv_.y < 0) {
 		mirrorMask ^= 2;
 		rayPos.y = 2 * scale - rayPos.y;
-		pmin.y = scale;
+		pmin.y += scale;
 	}
 	if (ray.dir_inv_.z < 0) {
 		mirrorMask ^= 4;
 		rayPos.z = 2 * scale - rayPos.z;
-		pmin.z = scale;
+		pmin.z += scale;
 	}
-	// float3 mirroredOrigin = mirror * scale;
+	float3 mirroredOrigin = pmin;
 
 	float3 inv_ray_dir = abs(ray.dir_inv_);
 
@@ -254,13 +304,13 @@ __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model
 	if (tmin >= tmax) {
 		return result;
 	}
-	if (t_pf.x < 0 && t_pb.x < 0) {
+	if (signbit(t_pf.x) && signbit(t_pb.x)) {
 		return result;
 	}
-	if (t_pf.y < 0 && t_pb.y < 0) {
+	if (signbit(t_pf.y) && signbit(t_pb.y)) {
 		return result;
 	}
-	if (t_pf.z < 0 && t_pb.z < 0) {
+	if (signbit(t_pf.z) && signbit(t_pb.z)) {
 		return result;
 	}
 
@@ -309,7 +359,11 @@ __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model
 			// child is valid
 			if (parent.child_data >> mirroredChildSlot & 0x1 || half < minScale) {
 				// is leaf
+
 				result.hit = true;
+				result.hitPos = ray.point(tmin) + model.details.position; // needs to be mirrored (i dont think so actually)
+				result.faceNormal = getNormal(tmin, t_cf, mirrorMask);
+				result.materialIndex = getMaterialIndex(parent, childSlot ^ mirrorMask);
 				tprev = tmin;
 				return result;
 			}

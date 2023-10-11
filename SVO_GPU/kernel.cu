@@ -17,7 +17,7 @@
 #include <cassert>
 using namespace _3D;
 
-__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, material_t* materials);
+__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, Material* materials);
 __global__ void render_headon(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch);
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -29,22 +29,22 @@ int main()
     QB_Loader modelLoader;
     Model model = modelLoader.load("C:\\Users\\AGWDW\\Desktop\\test2.qb");
     ModelDetails dets;
-    dets.span = { 1, 8 };
+    dets.span = { 0.25, 2 };
+    dets.position = make_float3(0, 0, 0);
 
-    test(tree_t(model.getData(), model.getData()+model.getSize()));
+    // test(tree_t(model.getData(), model.getData() + model.getSize()));
 
     Window window(X_RESOLUTION, Y_RESOLUTION);
 
     Texture texture(X_RESOLUTION, Y_RESOLUTION);
     cudaGraphicsResource_t tex_GPU = window.linkCUDA(texture);
 
-    const uint8_t num_shaders = 5;
-    material_t shaders[num_shaders] = {
-        { 0, 0, 0, 255 },
-        { 255, 255, 255, 255 },
-        { 255, 0, 0, 255 },
-        { 0, 255, 0, 255 },
-        { 0, 0, 255, 255 },
+    Material shaders[MATERIAL_COUNT] = {
+        Material(make_uchar3(0, 0, 0),     0.5f, 0.07f),      
+        Material(make_uchar3(255, 255, 0), 0.5f, 0.07f),
+        Material(make_uchar3(255, 0, 0),   0.5f, 0.07f),
+        Material(make_uchar3(0, 255, 0),   0.5f, 0.07f),
+        Material(make_uchar3(0, 0, 255),   0.5f, 0.07f)
     };
 
     // auto tree = Octree3D::getDefault();
@@ -54,7 +54,7 @@ int main()
 
     mainCamera = Camera({ 0, 0, -1 });
 
-    dim3 threadsPerBlock(16, 16);
+    dim3 threadsPerBlock(25, 25);
     dim3 numBlocks(X_RESOLUTION / threadsPerBlock.x, Y_RESOLUTION / threadsPerBlock.y);
 
     node_t* gpu_tree;
@@ -62,7 +62,7 @@ int main()
     uchar4* gpu_result;
     size_t* gpu_pitch;
     size_t cpu_pitch;
-    material_t* gpu_materials;
+    Material* gpu_materials;
     ModelDetails* gpu_modelDetails;
 
     cudaError_t status;
@@ -87,9 +87,9 @@ int main()
     assert(!status);
 
     // shaders
-    status = cudaMalloc(&gpu_materials, sizeof(material_t) * num_shaders);
+    status = cudaMalloc(&gpu_materials, sizeof(Material) * MATERIAL_COUNT);
     assert(!status);
-    status = cudaMemcpy(gpu_materials, &shaders, sizeof(material_t) * num_shaders, cudaMemcpyHostToDevice);
+    status = cudaMemcpy(gpu_materials, &shaders, sizeof(Material) * MATERIAL_COUNT, cudaMemcpyHostToDevice);
     assert(!status);
 
     // modelDetails
@@ -176,7 +176,7 @@ int main()
     return 0;
 }
 
-__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, material_t* materials) {
+__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, Material* materials) {
     const uchar4 CLEAR_COLOUR = make_uchar4(127, 127, 127, 255);
     const float focal_length = 1;
     const float3 camPos = make_float3(camera->Position);
@@ -216,13 +216,13 @@ __global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t*
     unsigned char& a = d->w;
     if (res.hit) {
         const float3 light_dir = normalize(make_float3(1, -1, 1));
-        const material_t mat = materials[res.material_index];
+        const Material mat = materials[res.material_index];
         float angle = light_dir.x * res.normal.x + light_dir.y * res.normal.y + light_dir.z * res.normal.z;
         angle = clamp(EPSILON, 1, angle);
         angle = 1;
-        r = ((float) mat.x) * angle;
-        g = ((float) mat.y) * angle;
-        b = ((float) mat.z) * angle;
+        r = ((float) mat.diffuse.x) * angle;
+        g = ((float) mat.diffuse.y) * angle;
+        b = ((float) mat.diffuse.z) * angle;
 
        // r = (res.normal.x * 0.5f + 0.5f) * 255.9;
        // g = (res.normal.y * 0.5f + 0.5f) * 255.9;

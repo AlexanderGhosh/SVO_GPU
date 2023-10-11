@@ -17,6 +17,8 @@ constexpr uint32_t Y_RESOLUTION = 800;
 constexpr uint32_t PIXEL_COUNT = X_RESOLUTION * Y_RESOLUTION;
 constexpr uint32_t NUM_CHANNELS = 3;
 constexpr uint32_t  IMAGE_DATA_SIZE = PIXEL_COUNT * NUM_CHANNELS;
+constexpr float AMBIENT = 0.1;
+constexpr float SPECULAR_ALPHA = 10;
 
 constexpr uint32_t MATERIAL_COUNT = 15;
 
@@ -25,7 +27,6 @@ struct node_t {
 	uint32_t shader_data;
 };
 
-using material_t = uchar4;
 using slot_t = int; // at the moment it CAN'T be unsigned
 using mirror_t = float3; // glm::bvec2 shold migrate to this
 using tree_t = std::vector<node_t>;
