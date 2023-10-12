@@ -20,7 +20,7 @@ public:
 	__host__ __device__ StackItem_& pop() { return data_[--size_]; }
 	__host__ __device__ const uint8_t size() const { return size_; };
 private:
-	StackItem_ data_[3];
+	StackItem_ data_[PARENT_STACK_DEPTH];
 	uint8_t size_;
 };
 
@@ -34,10 +34,11 @@ struct CastResult {
 struct ModelDetails {
 	float3 position;
 	float4 rotation;
+	float scale;
 
 	float2 span;
 
-	__host__ __device__ ModelDetails() : position(make_float3(0, 0, 0)), rotation(make_float4(0, 0, 0, 0)), span(make_float2(0, 0)) { }
+	__host__ __device__ ModelDetails() : position(make_float3(0, 0, 0)), rotation(make_float4(0, 0, 0, 0)), span(make_float2(1, 8)), scale(1) { }
 };
 
 struct Model_ {

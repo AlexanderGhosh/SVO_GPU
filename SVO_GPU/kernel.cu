@@ -25,9 +25,9 @@ Camera mainCamera;
 int main()
 {
     QB_Loader modelLoader;
-    Model model = modelLoader.load("C:\\Users\\AGWDW\\Desktop\\med.qb");
+    Model model = modelLoader.load("C:\\Users\\AGWDW\\Desktop\\test2.qb");
     ModelDetails dets;
-    dets.span = { 0.25, 2 };
+    dets.span = { .25f, 2.f };
     dets.position = make_float3(0, 0, 0);
 
     // test(tree_t(model.getData(), model.getData() + model.getTotalSize()));

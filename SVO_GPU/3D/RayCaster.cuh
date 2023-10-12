@@ -24,7 +24,7 @@ namespace _3D {
 		__device__ void push(node_t parent, slot_t slot) { data[size++] = { parent, slot }; }
 		__device__ StackItem& pop() { return data[--size]; }
 	private:
-		StackItem data[PARENT_STACK_DEPTH + 1];
+		StackItem data[PARENT_STACK_DEPTH];
 		int size;
 	};
 

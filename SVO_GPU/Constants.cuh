@@ -9,8 +9,8 @@ constexpr float EPSILON = 0.001f;
 constexpr float MAX_SCALE = 64;
 constexpr float MIN_SCALE = 1;
 constexpr uint32_t MAX_ITTERATIONS = 100;
-// constexpr int OCTREE_SIZE = 8;
-constexpr uint32_t PARENT_STACK_DEPTH = 7;
+constexpr uint8_t MAX_MODEL_SIZE = 8;
+constexpr uint32_t PARENT_STACK_DEPTH = 4;
 
 constexpr uint32_t X_RESOLUTION = 800;
 constexpr uint32_t Y_RESOLUTION = 800;

@@ -50,11 +50,11 @@ Model QB_Loader::load(const std::string& file) {
 		// asumes that max_span is a square
 		uchar4* ptr = (uchar4*) &buffer[index];
 		inplace_vector data(ptr, sizeX * sizeY * sizeZ);
-		std::vector<inplace_vector> modelData = {
+		std::list<inplace_vector> modelData = {
 			data
 		};
 		glm::ivec3 curSpan = max_span;
-		while (curSpan.x > 8) {
+		while (curSpan.x > MAX_MODEL_SIZE) {
 			auto cpy = modelData;
 			modelData.clear();
 			for (auto& c : cpy) {
@@ -66,30 +66,31 @@ Model QB_Loader::load(const std::string& file) {
 			curSpan /= 2;
 		}
 
-		std::list<_3D::Octree3D> all_nodes;
 		//std::map<_3D::Octree3D*, glm::uvec3> all_parents_1;
 
 		std::list<tree_t> models;
 
 		for (auto& data : modelData) {
-			all_nodes.push_back({});
-			_3D::Octree3D& root = all_nodes.back();
+			std::list<_3D::Octree3D> nodes;
+			nodes.push_back({});
+			_3D::Octree3D& root = nodes.back();
+
 			std::map<uchar3, uint32_t> colours;
-			recursivlyMakeTree(data, root, curSpan, all_nodes, colours);
+			recursivlyMakeTree(data, root, curSpan, nodes, colours);
+
 			tree_t compiled = _3D::Octree3D::compile(&root);
 			models.push_back(compiled);
 		}
-		std::list<float3> positions = {
-			make_float3(0, 0, 0),
-			make_float3(2, 0, 0),
-			make_float3(0, 2, 0),
-			make_float3(2, 2, 0),
+		std::list<float3> positions;
+		uint32_t s = powf(models.size(), 1 / 3.f);
+		for (uint32_t k = 0; k < s; k++) {
+			for (uint32_t j = 0; j < s; j++) {
+				for (uint32_t i = 0; i < s; i++) {
+					positions.push_back(make_float3(i * s, j * s, k * s));
+				}
+			}
+		}
 
-			make_float3(0, 0, 2),
-			make_float3(2, 0, 2),
-			make_float3(0, 2, 2),
-			make_float3(2, 2, 2),
-		};
 		return Model(models, positions);
 
 		// max_span = { sizeX, sizeY, sizeZ };
