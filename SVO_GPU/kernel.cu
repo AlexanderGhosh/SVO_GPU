@@ -17,8 +17,6 @@
 #include <cassert>
 using namespace _3D;
 
-__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, Material* materials);
-__global__ void render_headon(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch);
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow* window, double dt);
@@ -27,12 +25,12 @@ Camera mainCamera;
 int main()
 {
     QB_Loader modelLoader;
-    Model model = modelLoader.load("C:\\Users\\AGWDW\\Desktop\\test2.qb");
+    Model model = modelLoader.load("C:\\Users\\AGWDW\\Desktop\\med.qb");
     ModelDetails dets;
     dets.span = { 0.25, 2 };
     dets.position = make_float3(0, 0, 0);
 
-    // test(tree_t(model.getData(), model.getData() + model.getSize()));
+    // test(tree_t(model.getData(), model.getData() + model.getTotalSize()));
 
     Window window(X_RESOLUTION, Y_RESOLUTION);
 
@@ -57,7 +55,9 @@ int main()
     dim3 threadsPerBlock(25, 25);
     dim3 numBlocks(X_RESOLUTION / threadsPerBlock.x, Y_RESOLUTION / threadsPerBlock.y);
 
-    node_t* gpu_tree;
+    node_t* gpu_trees;
+    uint32_t* gpu_treeSizes;
+    float3* gpu_treePositions;
     Camera* gpu_camera;
     uchar4* gpu_result;
     size_t* gpu_pitch;
@@ -66,10 +66,22 @@ int main()
     ModelDetails* gpu_modelDetails;
 
     cudaError_t status;
-    // tree
-    status = cudaMalloc(&gpu_tree, sizeof(node_t) * model.getSize());
+    // trees
+    status = cudaMalloc(&gpu_trees, sizeof(node_t) * model.getTotalSize());
     assert(!status);
-    status = cudaMemcpy(gpu_tree, model.getData(), sizeof(node_t) * model.getSize(), cudaMemcpyHostToDevice);
+    status = cudaMemcpy(gpu_trees, model.getData(), sizeof(node_t) * model.getTotalSize(), cudaMemcpyHostToDevice);
+    assert(!status);
+    // tree sizes
+    const auto sizes = model.getTreeSizes();
+    status = cudaMalloc(&gpu_treeSizes, sizeof(uint32_t) * sizes.size());
+    assert(!status);
+    status = cudaMemcpy(gpu_treeSizes, sizes.data(), sizeof(uint32_t) * sizes.size(), cudaMemcpyHostToDevice);
+    assert(!status);
+    // tree positions
+    const auto positions = model.getTreePositions();
+    status = cudaMalloc(&gpu_treePositions, sizeof(float3) * positions.size());
+    assert(!status);
+    status = cudaMemcpy(gpu_treePositions, positions.data(), sizeof(float3) * positions.size(), cudaMemcpyHostToDevice);
     assert(!status);
 
     // camera
@@ -98,13 +110,6 @@ int main()
     status = cudaMemcpy(gpu_modelDetails, &dets, sizeof(ModelDetails), cudaMemcpyHostToDevice);
     assert(!status);
 
-    // model
-    // status = cudaMalloc(&gpu_model, sizeof(Model));
-    // assert(!status);
-    // status = cudaMemcpy(gpu_model, &model, sizeof(Model), cudaMemcpyHostToDevice);
-    // assert(!status);
-
-
     GLuint fbo = 0;
     glGenFramebuffers(1, &fbo);
 
@@ -122,9 +127,9 @@ int main()
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
         cudaEventRecord(start);
-
-        render_new<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_tree, gpu_materials, gpu_modelDetails, gpu_pitch, gpu_result);
-        // render<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_tree, gpu_result, gpu_pitch, gpu_materials);
+        // const Camera* camera, node_t* all_trees, uint32_t* treeSizes, uint32_t numTrees, Material* materials, ModelDetails* details, size_t* pitch, uchar4* out
+        render_new<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_trees, gpu_treeSizes, gpu_treePositions, sizes.size(), gpu_materials, gpu_modelDetails, gpu_pitch, gpu_result);
+        // render<<<numBlocks, threadsPerBlock>>>(gpu_camera, gpu_trees, gpu_result, gpu_pitch, gpu_materials);
 
         cudaEventRecord(stop);
         cudaEventSynchronize(stop); 
@@ -134,7 +139,7 @@ int main()
         frameCount++;
         
 
-        //render_headon << <numBlocks, threadsPerBlock >> > (gpu_camera, gpu_tree, gpu_result, gpu_pitch);
+        //render_headon << <numBlocks, threadsPerBlock >> > (gpu_camera, gpu_trees, gpu_result, gpu_pitch);
         cudaArray_t arr = window.map(tex_GPU);
         // copy        
         status = cudaMemcpy2DToArray(arr, 0, 0, gpu_result, cpu_pitch, X_RESOLUTION * sizeof(uchar4), Y_RESOLUTION, cudaMemcpyDefault);
@@ -167,120 +172,14 @@ int main()
 
     glDeleteFramebuffers(1, &fbo);
 
-    cudaFree(gpu_tree);
+    cudaFree(gpu_trees);
+    cudaFree(gpu_treeSizes);
     cudaFree(gpu_camera);
     cudaFree(gpu_result);
     cudaFree(gpu_pitch);
 
     // SaveImage("out.ppm", X_RESOLUTION, Y_RESOLUTION, data);
     return 0;
-}
-
-__global__ void render(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch, Material* materials) {
-    const uchar4 CLEAR_COLOUR = make_uchar4(127, 127, 127, 255);
-    const float focal_length = 1;
-    const float3 camPos = make_float3(camera->Position);
-
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-
-    // x = 500;
-    // y = 600;
-
-    const float width = X_RESOLUTION;  // pixels across
-    const float height = Y_RESOLUTION;  // pixels high
-    float normalized_i = (x / width) - 0.5;
-    float normalized_j = (y / height) - 0.5;
-    float3 ri = make_float3(camera->Right);
-    ri.x *= -normalized_i;
-    ri.y *= -normalized_i;
-    ri.z *= -normalized_i;
-    float3 u = make_float3(camera->Up);
-    u.x *= normalized_j;
-    u.y *= normalized_j;
-    u.z *= normalized_j;
-    float3 image_point = ri + u + camPos + make_float3(camera->Front) * focal_length;
-
-    float3 ray_direction = image_point - camPos;
-
-
-    _3D::Ray3D ray(camPos, ray_direction);
-
-    auto res = castRay(ray, tree);
-    ray_direction = ray.getDirection();
-
-    uchar4* d = element(data, *pitch, x, y);
-    unsigned char& r = d->x;
-    unsigned char& g = d->y;
-    unsigned char& b = d->z;
-    unsigned char& a = d->w;
-    if (res.hit) {
-        const float3 light_dir = normalize(make_float3(1, -1, 1));
-        const Material mat = materials[res.material_index];
-        float angle = light_dir.x * res.normal.x + light_dir.y * res.normal.y + light_dir.z * res.normal.z;
-        angle = clamp(EPSILON, 1, angle);
-        angle = 1;
-        r = ((float) mat.diffuse.x) * angle;
-        g = ((float) mat.diffuse.y) * angle;
-        b = ((float) mat.diffuse.z) * angle;
-
-       // r = (res.normal.x * 0.5f + 0.5f) * 255.9;
-       // g = (res.normal.y * 0.5f + 0.5f) * 255.9;
-       // b = (res.normal.z * 0.5f + 0.5f) * 255.9;
-       // r = 255;
-       // g = 255;
-       // b = 255;
-        a = 255;
-    }    
-    else {
-        *d = CLEAR_COLOUR;
-    }
-    if (x > 500 && x < 510 && y > 600 && y < 610) {
-        g = 255;
-    }
-}
-
-__global__ void render_headon(const Camera* camera, node_t* tree, uchar4* data, size_t* pitch) {
-    const uchar4 CLEAR_COLOUR = make_uchar4(127, 127, 127, 127);
-
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-
-    float u = float(x) / float(X_RESOLUTION);
-    float v = float(y) / float(Y_RESOLUTION);
-
-    /*float3 rayPos = make_float3(u * 8, v * 8, -1);
-    float3 rayDir = make_float3(0, 0, 1);
-    rayPos.x += camera->Position.x;
-    rayPos.y += camera->Position.y;
-    rayPos.z += camera->Position.z;
-
-    _3D::Ray3D ray(rayPos, rayDir);*/
-
-    float3 rayPos = make_float3(u * 8, v * 8, 1);
-    float3 rayDir = make_float3(0, 0, 1);
-    // rayPos.x += camera->Position.x;
-    // rayPos.y += camera->Position.y;
-    // rayPos.z += camera->Position.z;
-
-    _3D::Ray3D ray(make_float3(0, 0, -1), rayPos);
-
-    auto res = castRay(ray, tree);
-
-    uchar4* d = element(data, *pitch, x, y);
-    unsigned char& r = d->x;
-    unsigned char& g = d->y;
-    unsigned char& b = d->z;
-    unsigned char& a = d->w;
-    if (res.hit) {
-        r = 255;
-        g = 0;
-        b = 0;
-        a = 255;
-    }
-    else {
-        *d = CLEAR_COLOUR;
-    }
 }
 
 void processInput(GLFWwindow* window, double dt)

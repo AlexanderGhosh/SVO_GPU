@@ -80,11 +80,7 @@ __host__ __device__ uchar4 bling_phong(const Material& mat, const CastResult& de
 }
 
 
-__global__ void render_new(const Camera* camera, node_t* tree, Material* materials, ModelDetails* details, size_t* pitch, uchar4* out) {
-	Model_ m;
-	m.tree = tree;
-	m.materials = materials;
-	if (details) m.details = *details;
+__global__ void render_new(const Camera* camera, node_t* all_trees, uint32_t* treeSizes, float3* treePositions, uint32_t numTrees, Material* materials, ModelDetails* details, size_t* pitch, uchar4* out) {
 
 	const uchar4 CLEAR_COLOUR = make_uchar4(127, 127, 127, 255);
 	const float focal_length = 1;
@@ -116,28 +112,31 @@ __global__ void render_new(const Camera* camera, node_t* tree, Material* materia
 
 	_3D::Ray3D ray(camPos, ray_direction);
 
-	float tprev = 0;
-	auto res = castRay(ray, m, tprev);
-
+	float tprev = FLT_MAX;
+	CastResult res{};
+	uint32_t idx = 0;
+	Model_ m;
+	m.materials = materials;
+	m.details = {};
+	m.details.span = { .25f, 2.f };
+	for (uint32_t i = 0; i < numTrees; i++) {
+		m.tree = &all_trees[idx];
+		m.details.position = treePositions[i];
+		float t = 0;
+		auto r = castRay(ray, m, t);
+		if (t < tprev && r.hit) {
+			res = r;
+			tprev = t;
+		}
+		idx += treeSizes[i];
+	}
 	uchar4* d = element(out, *pitch, x, y);
 	unsigned char& r = d->x;
 	unsigned char& g = d->y;
 	unsigned char& b = d->z;
 	unsigned char& a = d->w;
 	if (res.hit) {
-		// const float3 light_dir = normalize(make_float3(1, -1, 1));
 		const Material& mat = materials[res.materialIndex];
-		// float angle = light_dir.x * res.faceNormal.x + light_dir.y * res.faceNormal.y + light_dir.z * res.faceNormal.z;
-		// angle = clamp(EPSILON, 1, angle);
-		// angle = 1;
-		// r = ((float)mat.x) * angle;
-		// g = ((float)mat.y) * angle;
-		// b = ((float)mat.z) * angle;
-
-		// r = (res.faceNormal.x * 0.5f + 0.5f) * 255.9;
-		// g = (res.faceNormal.y * 0.5f + 0.5f) * 255.9;
-		// b = (res.faceNormal.z * 0.5f + 0.5f) * 255.9;
-
 		*d = bling_phong(mat, res, -normalize(make_float3(1, -1, 1)), ray);
 		a = 255;
 	}

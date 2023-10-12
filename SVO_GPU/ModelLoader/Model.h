@@ -1,18 +1,23 @@
 #pragma once
 #include <glm.hpp>
+#include <list>
 #include "../Material.cuh"
 #include "../3D/Octree3D.cuh"
 
 class Model {
 private:
-	tree_t tree_;
+	std::vector<node_t> trees_;
+	std::vector<float3> treePositions_;
+	std::vector<uint32_t> treeSizes_;
 	Material materials_[MATERIAL_COUNT];
-	uint32_t tree_size_;
+	uint32_t total_size_;
 public:
 	Model();
-	Model(tree_t compiled);
+	Model(const std::list<tree_t>& trees, const std::list<float3>& positions);
 	~Model();
 	const node_t* getData() const;
-	const uint32_t getSize() const;
+	const uint32_t getTotalSize() const;
+	const std::vector<uint32_t> getTreeSizes() const;
+	const std::vector<float3> getTreePositions() const;
 	const Material getMaterial(const uint8_t index) const;
 };

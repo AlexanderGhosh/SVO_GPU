@@ -48,56 +48,59 @@ Model QB_Loader::load(const std::string& file) {
 
 
 		// asumes that max_span is a square
-		uchar4* ptr = (uchar4*)&buffer[index];
+		uchar4* ptr = (uchar4*) &buffer[index];
 		inplace_vector data(ptr, sizeX * sizeY * sizeZ);
 		std::vector<inplace_vector> modelData = {
 			data
 		};
-		while (max_span.x > 8) {
+		glm::ivec3 curSpan = max_span;
+		while (curSpan.x > 8) {
 			auto cpy = modelData;
 			modelData.clear();
 			for (auto& c : cpy) {
-				auto split_ = splitData(c, max_span);
+				auto split_ = splitData(c, curSpan);
 				for (auto& s : split_) {
 					modelData.push_back(s);
 				}
 			}
-			max_span /= 2;
+			curSpan /= 2;
 		}
 
 		std::list<_3D::Octree3D> all_nodes;
 		//std::map<_3D::Octree3D*, glm::uvec3> all_parents_1;
 
-		std::vector<tree_t> models;
-		models.reserve(modelData.size());
+		std::list<tree_t> models;
 
 		for (auto& data : modelData) {
-			_3D::Octree3D root;
-			std::list<_3D::Octree3D> nodes = {
-				root
-			};
+			all_nodes.push_back({});
+			_3D::Octree3D& root = all_nodes.back();
 			std::map<uchar3, uint32_t> colours;
-			recursivlyMakeTree(data, root, { sizeX, sizeY, sizeZ }, nodes, colours);
+			recursivlyMakeTree(data, root, curSpan, all_nodes, colours);
 			tree_t compiled = _3D::Octree3D::compile(&root);
 			models.push_back(compiled);
 		}
-		return Model(models[0]);
+		std::list<float3> positions = {
+			make_float3(0, 0, 0),
+			make_float3(2, 0, 0),
+			make_float3(0, 2, 0),
+			make_float3(2, 2, 0),
 
+			make_float3(0, 0, 2),
+			make_float3(2, 0, 2),
+			make_float3(0, 2, 2),
+			make_float3(2, 2, 2),
+		};
+		return Model(models, positions);
 
-		// std::list<_3D::Octree3D> all_nodes;
-		// //std::map<_3D::Octree3D*, glm::uvec3> all_parents_1;
-
-		// auto addNode = [&]() -> _3D::Octree3D& {
-		// 	 all_nodes.push_back({});
-		// 	 return all_nodes.back();
-		// };
-		// uchar4* ptr = (uchar4*) & buffer[index];
-		// inplace_vector data(ptr, sizeX * sizeY * sizeZ);
+		// max_span = { sizeX, sizeY, sizeZ };
+		// ptr = (uchar4*) &buffer[index];
+		// data = inplace_vector(ptr, sizeX * sizeY * sizeZ);
 		// _3D::Octree3D root;
 		// std::list<_3D::Octree3D> nodes = {
 		// 	 root
 		// };
-		// recursivlyMakeTree(data, root, { sizeX, sizeY, sizeZ }, nodes);
+		// std::map<uchar3, uint32_t> colours;
+		// recursivlyMakeTree(data, root, { sizeX, sizeY, sizeZ }, nodes, colours);
 		// tree_t compiled = _3D::Octree3D::compile(&root);
 		// return Model(compiled);
 	}
