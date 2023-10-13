@@ -5,7 +5,7 @@
 #include <vector>
 #include <glm.hpp>
 
-constexpr float EPSILON = 0.001f;
+constexpr float EPSILON = 0.00001f;
 constexpr float MAX_SCALE = 64;
 constexpr float MIN_SCALE = 1;
 constexpr uint32_t MAX_ITTERATIONS = 100;

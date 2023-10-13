@@ -27,7 +27,7 @@ int main()
     QB_Loader modelLoader;
     Model model = modelLoader.load("C:\\Users\\AGWDW\\Desktop\\test2.qb");
     ModelDetails dets;
-    dets.span = { .25f, 2.f };
+    dets.scale = 1;
     dets.position = make_float3(0, 0, 0);
 
     // test(tree_t(model.getData(), model.getData() + model.getTotalSize()));
@@ -174,6 +174,8 @@ int main()
 
     cudaFree(gpu_trees);
     cudaFree(gpu_treeSizes);
+    cudaFree(gpu_modelDetails);
+    cudaFree(gpu_materials);
     cudaFree(gpu_camera);
     cudaFree(gpu_result);
     cudaFree(gpu_pitch);

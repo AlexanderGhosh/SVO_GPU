@@ -36,9 +36,12 @@ struct ModelDetails {
 	float4 rotation;
 	float scale;
 
-	float2 span;
+	__host__ __device__ float2 getSpan() const { 
+		float s = clamp(0.125f, 100, scale);
+		return make_float2(s, 8 * s); 
+	};
 
-	__host__ __device__ ModelDetails() : position(make_float3(0, 0, 0)), rotation(make_float4(0, 0, 0, 0)), span(make_float2(1, 8)), scale(1) { }
+	__host__ __device__ ModelDetails() : position(make_float3(0, 0, 0)), rotation(make_float4(0, 0, 0, 0)), scale(1) { }
 };
 
 struct Model_ {
@@ -118,8 +121,8 @@ __global__ void render_new(const Camera* camera, node_t* all_trees, uint32_t* tr
 	uint32_t idx = 0;
 	Model_ m;
 	m.materials = materials;
-	m.details = {};
-	m.details.span = { .25f, 2.f };
+	m.details = *details;
+	float3 op = m.details.position;
 	for (uint32_t i = 0; i < numTrees; i++) {
 		m.tree = &all_trees[idx];
 		m.details.position = treePositions[i];
@@ -158,7 +161,6 @@ void test(tree_t tree) {
 	Model_ m;
 	m.tree = tree.data();
 	m.details = ModelDetails();
-	m.details.span = { 1, 8 };
 	float tmax = 0;
 
 	for (int x = 0; x < width; x++) {
@@ -244,8 +246,8 @@ __host__ __device__ CastResult castRay(const _3D::Ray3D& ray, const Model_ model
 	result.hit = false;
 
 	const node_t* tree = model.tree;
-	const uint32_t minScale = model.details.span.x;
-	const uint32_t maxScale = model.details.span.y;
+	const uint32_t minScale = model.details.getSpan().x;
+	const uint32_t maxScale = model.details.getSpan().y;
 
 	float scale = maxScale;
 	float half = scale * .5f;
